@@ -143,11 +143,11 @@
     <h1>{{ form.title }}</h1>
 
     <form
-      hx-post="{{ request.base_url }}form/{{ form.slug }}"
+      hx-post="{{ request.url.scheme }}://{{ request.url.hostname }}/form/{{ form.slug }}"
       hx-target="#form-response"
       hx-swap="innerHTML"
       method="post"
-      action="{{ request.base_url }}form/{{ form.slug }}"
+      action="{{ request.url.scheme }}://{{ request.url.hostname }}/form/{{ form.slug }}"
     >
       {% for field in form.fields %}
         {% if field.type == 'textarea' %}
