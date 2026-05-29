@@ -14,9 +14,7 @@ tags:
 
 > A self-hosted, privacy-focused contact form backend with anti-spam built in. Deploy on Railway in 2 minutes.
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/your-org/railway-form-template)
-
-> **Note:** Replace `your-org/railway-form-template` with your actual GitHub repository path after forking.
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/INAPP-Mobile/railway-form-template)
 
 ```text
 ┌─────────────────────────────────────────────────┐
@@ -32,10 +30,15 @@ tags:
               ▼
 ┌─────────────────────────────────────────────────┐
 │              Railway (this app)                  │
-│  ┌─────────┐  ┌──────────┐  ┌────────────────┐ │
-│  │ CAPTCHA │──│  FastAPI  │──│   PostgreSQL   │ │
-│  │  Chain  │  │  Backend  │  │  (asyncpg)     │ │
-│  └─────────┘  └────┬─────┘  └────────────────┘ │
+│  ┌──────────┐  ┌──────────┐  ┌────────────────┐ │
+│  │  Cap     │──│  FastAPI  │──│   PostgreSQL   │ │
+│  │ CAPTCHA  │  │  Backend  │  │  (asyncpg)     │ │
+│  └────┬─────┘  └──────────┘  └────────────────┘ │
+│       │                                            │
+│  ┌────▼─────┐                                      │
+│  │  Valkey  │                                      │
+│  │ (Redis)  │                                      │
+│  └──────────┘                                      │
 │                    │                            │
 │                    ▼                            │
 │           ┌────────────────┐                    │
@@ -60,18 +63,24 @@ tags:
 
 ## Service Architecture
 
-This template uses 3 services:
+This template uses 4 services:
 
 1. **Form API** — The FastAPI backend (this repository)
 2. **Cap CAPTCHA** — Anti-spam CAPTCHA service from Docker image `tiago2/cap`
 3. **PostgreSQL** — Database for storing submissions and form definitions
+4. **Valkey** — Redis-compatible in-memory store for Cap CAPTCHA session storage (`valkey/valkey:8-alpine`)
 
 In the Railway Template Composer, after clicking the deploy button:
 
 1. Add the Form API service (auto-deployed from this repo)
 2. Click **Add Service** → **Database** → **PostgreSQL** to provision the database
 3. Click **Add Service** → **From Docker Image** → enter `tiago2/cap` to add Cap CAPTCHA
-4. Set `CAP_ENDPOINT` to the Cap service URL (e.g., `http://cap:8080/c`) and `CAP_SECRET_KEY` to a shared secret
+4. Click **Add Service** → **From Docker Image** → enter `valkey/valkey:8-alpine` to add Valkey
+5. After deployment, set Cap's environment variables:
+   - `REDIS_URL` → `${{Valkey.REDIS_URL}}` (connection to Valkey)
+   - `ADMIN_KEY` → a secure password of your choice
+   - `CAP_ENDPOINT` → the Cap service URL (e.g., `http://cap:8080/c`)
+   - `CAP_SECRET_KEY` → a shared secret with the Form API
 
 ## Prerequisites
 
@@ -107,6 +116,8 @@ After deployment, set these variables in Railway:
 | `FROM_EMAIL` | ❌ | `noreply@contact-form.app` | Sender address |
 | `RATE_LIMIT` | ❌ | `10` | Max submissions per IP per hour |
 | `RATE_LIMIT_BACKEND` | ❌ | `memory` | `memory` or `db` |
+
+> **Note:** Valkey auto-fills `REDIS_URL` for the Cap CAPTCHA service — no manual configuration needed for the Redis connection.
 
 ### 3. Get Your Form Endpoint
 
@@ -160,7 +171,7 @@ The app uses a three-layer anti-spam approach:
 
 | Layer | Method | Description |
 |-------|--------|-------------|
-| 1 | **Cap** | Primary CAPTCHA provider. Simple, privacy-friendly alternative to reCAPTCHA. |
+| 1 | **Cap** | Primary CAPTCHA provider. Simple, privacy-friendly alternative to reCAPTCHA. Uses Valkey (Redis-compatible) as its backing session store — included as the 4th service so it works out of the box. |
 | 2 | **Honeypot** | Hidden form field that bots fill in but humans don't see. |
 | 3 | **PoW** | Built-in proof-of-work challenge (SHA-256) as last resort. |
 
