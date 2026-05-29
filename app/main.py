@@ -77,6 +77,8 @@ async def public_form(request: Request, slug: str):
     pool = request.app.state.pool
     form_def = await get_form_by_slug(pool, slug)
     if not form_def:
+        if _wants_html(request):
+            return HTMLResponse(status_code=404, content='<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Form not found</div>')
         raise HTTPException(status_code=404, detail="Form not found")
     return await TemplateResponse(
         "public_form.html",
@@ -87,6 +89,8 @@ async def submit_form(request: Request, slug: str):
     pool = request.app.state.pool
     form_def = await get_form_by_slug(pool, slug)
     if not form_def:
+        if _wants_html(request):
+            return HTMLResponse(status_code=404, content='<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Form not found</div>')
         raise HTTPException(status_code=404, detail="Form not found")
     ip = request.client.host if request.client else "unknown"
     allowed = await check_rate_limit(pool, ip)
@@ -125,12 +129,16 @@ async def submit_form(request: Request, slug: str):
         is_required = field.get("required", False)
         if fname not in data:
             if is_required:
+                if _wants_html(request):
+                    return HTMLResponse(status_code=400, content=f'<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Field "{field.get("label", fname)}" is required</div>')
                 raise HTTPException(status_code=400, detail=f"Field '{field.get('label', fname)}' is required")
             continue
         val = data[fname]
         if isinstance(val, str):
             val = val.strip()
         if is_required and not val:
+            if _wants_html(request):
+                return HTMLResponse(status_code=400, content=f'<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Field "{field.get("label", fname)}" is required</div>')
             raise HTTPException(status_code=400, detail=f"Field '{field.get('label', fname)}' is required")
         submission_data[fname] = val
         if field.get("type") == "email":
