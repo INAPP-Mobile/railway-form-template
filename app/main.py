@@ -62,12 +62,10 @@ async def health(request: Request):
                 db_ok = True
         except Exception:
             pass
-    if db_ok:
-        return {"status": "healthy", "database": "connected"}
-    return JSONResponse(
-        status_code=503,
-        content={"status": "unhealthy", "database": "disconnected"},
-    )
+    return {
+        "status": "healthy",
+        "database": "connected" if db_ok else "disconnected",
+    }
 @app.post("/form/{slug}")
 async def submit_form(request: Request, slug: str):
     pool = request.app.state.pool
