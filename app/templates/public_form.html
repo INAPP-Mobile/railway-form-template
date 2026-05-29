@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ form.title }} - Contact Form</title>
-  <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJGH6yndiB+E4eCH9pQZb1+YDNRtRgC1iHslUCp" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4" ></script>
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
@@ -143,11 +143,11 @@
     <h1>{{ form.title }}</h1>
 
     <form
-      hx-post="{{ request.url.scheme }}://{{ request.url.hostname }}/form/{{ form.slug }}"
+      hx-post="https://{{ request.url.hostname }}/form/{{ form.slug }}"
       hx-target="#form-response"
       hx-swap="innerHTML"
       method="post"
-      action="{{ request.url.scheme }}://{{ request.url.hostname }}/form/{{ form.slug }}"
+      action="https://{{ request.url.hostname }}/form/{{ form.slug }}"
     >
       {% for field in form.fields %}
         {% if field.type == 'textarea' %}
@@ -181,7 +181,7 @@
 
       {% if settings.cap_endpoint %}
       <script src="https://cdn.jsdelivr.net/npm/cap-widget"></script>
-      <cap-widget required
+      <cap-widget
         data-cap-api-endpoint="{{ settings.cap_endpoint }}">
       </cap-widget>
       {% endif %}
