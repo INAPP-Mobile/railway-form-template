@@ -7,7 +7,7 @@
   <div class="form-edit">
     <h2>{{ 'Edit Form' if editing_form.get('id') else 'New Form' }}</h2>
     {% if editing_form.get('id') %}
-    <form method="post" action="/admin/forms" hx-put="/admin/form/{{ editing_form['id'] }}" hx-target="main.content" hx-swap="innerHTML" hx-target-error="main.content">
+    <form hx-put="/admin/form/{{ editing_form['id'] }}" hx-target="main.content" hx-swap="innerHTML" hx-target-error="main.content">
     {% else %}
     <form method="post" action="/admin/forms" hx-post="/admin/forms" hx-target="main.content" hx-swap="innerHTML" hx-target-error="main.content">
     {% endif %}
