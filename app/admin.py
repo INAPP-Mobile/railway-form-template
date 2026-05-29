@@ -5,14 +5,13 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, Query, Request, Response
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
+from app.templates_ import templates
 
 from app import db as db_module
 from app.config import settings
 from app.forms import create_form, delete_form, get_form, get_form_by_slug, get_forms, update_form
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 
 def auth_required(request: Request):
