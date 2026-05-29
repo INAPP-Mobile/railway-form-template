@@ -150,7 +150,7 @@ async def submit_form(request: Request, slug: str):
     async with pool.acquire() as conn:
         await conn.execute(
             "INSERT INTO submissions (form_slug, data, metadata) VALUES ($1, $2, $3)",
-            slug, submission_data, metadata,
+            slug, json.dumps(submission_data), json.dumps(metadata),
         )
 
     if settings.form_recipient_email:

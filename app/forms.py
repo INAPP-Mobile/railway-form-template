@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 import asyncpg
 
@@ -24,7 +25,7 @@ async def create_form(pool: asyncpg.Pool, slug: str, title: str, fields: list):
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             "INSERT INTO forms (slug, title, fields) VALUES ($1, $2, $3) RETURNING *",
-            slug, title, fields,
+            slug, title, json.dumps(fields),
         )
         return dict(row)
 
@@ -33,7 +34,7 @@ async def update_form(pool: asyncpg.Pool, form_id: str, title: str, fields: list
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             "UPDATE forms SET title = $1, fields = $2, updated_at = NOW() WHERE id = $3 RETURNING *",
-            title, fields, form_id,
+            title, json.dumps(fields), form_id,
         )
         return dict(row) if row else None
 

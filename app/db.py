@@ -1,3 +1,4 @@
+import json
 import asyncpg
 from app.config import settings
 
@@ -47,5 +48,5 @@ async def init_db(pool: asyncpg.Pool):
             ]
             await conn.execute(
                 "INSERT INTO forms (slug, title, fields) VALUES ($1, $2, $3)",
-                "contact", "Contact Form", default_fields,
+                "contact", "Contact Form", json.dumps(default_fields),
             )
