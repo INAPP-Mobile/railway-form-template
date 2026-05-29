@@ -16,6 +16,10 @@ from app.email_ import send_notification
 from app.forms import get_form_by_slug, get_forms
 from app.rate_limit import check_rate_limit, ensure_rate_limit_table
 
+def _wants_html(request: Request) -> bool:
+    accept = request.headers.get("accept", "")
+    return "text/html" in accept or "application/xhtml" in accept
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     pool = await db_module.create_pool()
@@ -91,6 +95,11 @@ async def submit_form(request: Request, slug: str):
             raise HTTPException(status_code=400, detail="Invalid request body")
     captcha_ok, captcha_err = await verify_captcha(request, data)
     if not captcha_ok:
+        if _wants_html(request):
+            return HTMLResponse(
+                status_code=400,
+                content='<div class="error-banner">' + (captcha_err or "CAPTCHA failed") + '</div>',
+            )
         raise HTTPException(status_code=400, detail=captcha_err or "CAPTCHA failed")
     cap_token = data.pop("cap_token", None)
     pow_secret = data.pop("pow_secret", None)
