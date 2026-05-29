@@ -1,4 +1,6 @@
 import json
+from typing import Optional
+
 import asyncpg
 from app.config import settings
 
@@ -13,7 +15,9 @@ async def init_conn(conn: asyncpg.Connection):
     )
 
 
-async def create_pool() -> asyncpg.Pool:
+async def create_pool() -> Optional[asyncpg.Pool]:
+    if not settings.database_url:
+        return None
     return await asyncpg.create_pool(
         settings.database_url,
         init=init_conn,
@@ -22,7 +26,9 @@ async def create_pool() -> asyncpg.Pool:
     )
 
 
-async def init_db(pool: asyncpg.Pool):
+async def init_db(pool: Optional[asyncpg.Pool]):
+    if not pool:
+        return
     async with pool.acquire() as conn:
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS forms (

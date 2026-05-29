@@ -3,7 +3,9 @@ import io
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Form, Query, Request, Response
+import json
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from app.templates_ import TemplateResponse
 
@@ -16,7 +18,7 @@ router = APIRouter()
 
 def auth_required(request: Request):
     if not request.session.get("authenticated"):
-        raise RedirectResponse(url="/admin/login", status_code=302)
+        raise HTTPException(status_code=303, headers={"Location": "/admin/login"})
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -163,8 +165,8 @@ async def export_csv(request: Request):
     writer.writerow(["id", "form_slug", "data", "metadata", "is_read", "created_at"])
     for r in rows:
         writer.writerow([
-            r["id"], r["form_slug"], str(r["data"]),
-            str(r["metadata"]), r["is_read"], r["created_at"].isoformat(),
+            r["id"], r["form_slug"], json.dumps(r["data"]),
+            json.dumps(r["metadata"]), r["is_read"], r["created_at"].isoformat(),
         ])
 
     output.seek(0)

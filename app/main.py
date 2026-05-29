@@ -20,11 +20,13 @@ from app.rate_limit import check_rate_limit, ensure_rate_limit_table
 async def lifespan(app: FastAPI):
     pool = await db_module.create_pool()
     app.state.pool = pool
-    await db_module.init_db(pool)
-    if settings.rate_limit_backend == "db":
-        await ensure_rate_limit_table(pool)
+    if pool:
+        await db_module.init_db(pool)
+        if settings.rate_limit_backend == "db":
+            await ensure_rate_limit_table(pool)
     yield
-    await pool.close()
+    if pool:
+        await pool.close()
 app = FastAPI(
     title="Privacy-First Contact Form",
     version="1.0.0",
@@ -102,20 +104,21 @@ async def submit_form(request: Request, slug: str):
     name_val = ""
     for field in form_def["fields"]:
         fname = field.get("name")
-        if fname in data:
-            val = data[fname]
-            if isinstance(val, str):
-                val = val.strip()
-            if field.get("required") and not val:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Field '{field.get('label', fname)}' is required",
-                )
-            submission_data[fname] = val
-            if field.get("type") == "email":
-                email_val = val
-            if fname == "name":
-                name_val = val
+        is_required = field.get("required", False)
+        if fname not in data:
+            if is_required:
+                raise HTTPException(status_code=400, detail=f"Field '{field.get('label', fname)}' is required")
+            continue
+        val = data[fname]
+        if isinstance(val, str):
+            val = val.strip()
+        if is_required and not val:
+            raise HTTPException(status_code=400, detail=f"Field '{field.get('label', fname)}' is required")
+        submission_data[fname] = val
+        if field.get("type") == "email":
+            email_val = val
+        if fname == "name":
+            name_val = val
     metadata = {
         "ip": ip,
         "user_agent": request.headers.get("user-agent", ""),

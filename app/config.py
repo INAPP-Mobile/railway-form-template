@@ -3,7 +3,7 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
-    database_url: str
+    database_url: Optional[str] = None
     admin_password: str
     cap_endpoint: Optional[str] = None
     cap_secret_key: Optional[str] = None
