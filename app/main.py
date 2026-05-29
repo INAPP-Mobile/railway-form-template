@@ -20,7 +20,7 @@ def _wants_html(request: Request) -> bool:
     if request.headers.get("hx-request") == "true":
         return True
     accept = request.headers.get("accept", "")
-    return "text/html" in accept or "application/xhtml" in accept
+    return "text/html" in accept or "application/xhtml" in accept or accept == "*/*"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
