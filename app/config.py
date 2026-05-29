@@ -4,7 +4,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     database_url: Optional[str] = None
-    admin_password: str
+    admin_password: Optional[str] = None
     cap_endpoint: Optional[str] = None
     cap_secret_key: Optional[str] = None
     captcha_mode: str = "auto"

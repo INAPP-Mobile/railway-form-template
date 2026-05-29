@@ -28,6 +28,10 @@ async def login_page(request: Request):
 
 @router.post("/login")
 async def login(request: Request, password: str = Form(...)):
+    if settings.admin_password is None:
+        request.session["authenticated"] = True
+        request.session["warning"] = "ADMIN_PASSWORD not set — using default auth"
+        return RedirectResponse(url="/admin", status_code=302)
     if password == settings.admin_password:
         request.session["authenticated"] = True
         return RedirectResponse(url="/admin", status_code=302)
@@ -58,6 +62,10 @@ async def dashboard(request: Request):
 
     total_pages = max(1, (total + 19) // 20)
 
+    warning = request.session.pop("warning", None)
+    if warning is None and settings.admin_password is None:
+        warning = "ADMIN_PASSWORD not set — using default auth"
+
     return await TemplateResponse(
         "admin_dashboard.html",
         {
@@ -69,6 +77,7 @@ async def dashboard(request: Request):
             "total": total,
             "search": "",
             "form_slug": "",
+            "warning": warning,
         },
     )
 

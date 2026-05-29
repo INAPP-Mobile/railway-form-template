@@ -20,6 +20,9 @@
       </div>
     </nav>
     <main class="content">
+      {% if warning %}
+        <div class="warning-banner">{{ warning }}</div>
+      {% endif %}
       {% if show_forms %}
         {% include "admin_forms.html" with context %}
       {% elif editing_form is defined and editing_form %}
