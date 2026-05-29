@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Res
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from app.templates_ import TemplateResponse
 
+import asyncpg
 from app import db as db_module
 from app.config import settings
 from app.forms import create_form, delete_form, get_form, get_form_by_slug, get_forms, update_form
@@ -262,7 +263,10 @@ async def create_form_route(
         fields = json.loads(fields_json)
     except json.JSONDecodeError as e:
         return HTMLResponse(status_code=400, content=f"Invalid fields JSON: {e}")
-    await create_form(pool, slug, title, fields)
+    try:
+        await create_form(pool, slug, title, fields)
+    except asyncpg.exceptions.UniqueViolationError:
+        return HTMLResponse(status_code=400, content="A form with this slug already exists.")
     return HTMLResponse(status_code=200, headers={"HX-Redirect": "/admin/forms"}, content="")
 
 
@@ -295,7 +299,10 @@ async def update_form_route(
         fields = json.loads(fields_json)
     except json.JSONDecodeError as e:
         return HTMLResponse(status_code=400, content=f"Invalid fields JSON: {e}")
-    await update_form(pool, form_id, title, fields)
+    try:
+        await update_form(pool, form_id, title, fields)
+    except asyncpg.exceptions.UniqueViolationError:
+        return HTMLResponse(status_code=400, content="A form with this slug already exists.")
     return HTMLResponse(status_code=200, headers={"HX-Redirect": "/admin/forms"}, content="")
 
 
