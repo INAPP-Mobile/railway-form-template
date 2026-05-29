@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     if pool:
         await pool.close()
 app = FastAPI(
-    title="Privacy-First Contact Form",
+    title="Easy Form",
     version="1.0.0",
     lifespan=lifespan,
 )

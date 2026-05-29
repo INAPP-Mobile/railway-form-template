@@ -1,20 +1,20 @@
 ---
-title: Privacy-First Contact Form
-description: Self-hosted, privacy-focused contact form backend with anti-spam (Cap CAPTCHA), PostgreSQL storage, admin dashboard with HTMX, and optional email forwarding via SendGrid/SMTP.
+title: Easy Form
+description: Self-hosted contact form with anti-spam (Cap CAPTCHA), PostgreSQL storage, HTMX admin dashboard, and optional email forwarding. Deploy on Railway in one click.
 tags:
   - fastapi
   - python
   - postgresql
   - captcha
-  - privacy
   - htmx
+  - valkey
 ---
 
-# Privacy-First Contact Form
+# Easy Form
 
-> A self-hosted, privacy-focused contact form backend with anti-spam built in. Deploy on Railway in 2 minutes.
+> A self-hosted contact form with Cap CAPTCHA anti-spam and HTMX admin dashboard. Deploy on Railway in one click.
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/INAPP-Mobile/railway-form-template)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.com/workspace/templates/new?projectId=bc5fe6ef-4975-49a5-ae09-5a0ef3124f36)
 
 ```text
 ┌─────────────────────────────────────────────────┐
@@ -63,24 +63,14 @@ tags:
 
 ## Service Architecture
 
-This template uses 4 services:
+This template uses 4 services — all wired and ready on deploy:
 
 1. **Form API** — The FastAPI backend (this repository)
-2. **Cap CAPTCHA** — Anti-spam CAPTCHA service from Docker image `tiago2/cap`
-3. **PostgreSQL** — Database for storing submissions and form definitions
-4. **Valkey** — Redis-compatible in-memory store for Cap CAPTCHA session storage (`valkey/valkey:8-alpine`)
+2. **Cap CAPTCHA** — Anti-spam CAPTCHA service from `tiago2/cap`
+3. **PostgreSQL** — Database for submissions and form definitions
+4. **Valkey** — Redis-compatible store for Cap session data (`valkey/valkey:8-alpine`)
 
-In the Railway Template Composer, after clicking the deploy button:
-
-1. Add the Form API service (auto-deployed from this repo)
-2. Click **Add Service** → **Database** → **PostgreSQL** to provision the database
-3. Click **Add Service** → **From Docker Image** → enter `tiago2/cap` to add Cap CAPTCHA
-4. Click **Add Service** → **From Docker Image** → enter `valkey/valkey:8-alpine` to add Valkey
-5. After deployment, set Cap's environment variables:
-   - `REDIS_URL` → `${{Valkey.REDIS_URL}}` (connection to Valkey)
-   - `ADMIN_KEY` → a secure password of your choice
-   - `CAP_ENDPOINT` → the Cap service URL (e.g., `http://cap:8080/c`)
-   - `CAP_SECRET_KEY` → a shared secret with the Form API
+Environment variables are pre-configured with reference variables — `DATABASE_URL`, `REDIS_URL`, `CAP_ENDPOINT`, and `CAP_SECRET_KEY` are all wired automatically.
 
 ## Prerequisites
 
@@ -117,7 +107,7 @@ After deployment, set these variables in Railway:
 | `RATE_LIMIT` | ❌ | `10` | Max submissions per IP per hour |
 | `RATE_LIMIT_BACKEND` | ❌ | `memory` | `memory` or `db` |
 
-> **Note:** Valkey auto-fills `REDIS_URL` for the Cap CAPTCHA service — no manual configuration needed for the Redis connection.
+> **Note:** When deployed via the template, all database and service URLs are pre-configured. Only set `ADMIN_PASSWORD` (for the admin dashboard) and optional email settings.
 
 ### 3. Get Your Form Endpoint
 
