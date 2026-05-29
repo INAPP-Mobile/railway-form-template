@@ -17,13 +17,179 @@
       <label for="title">Title</label>
       <input type="text" name="title" id="title" value="{{ editing_form.get('title', 'Contact Form') }}" required>
 
-      <label for="fields_json">Fields (JSON)</label>
-      <textarea name="fields_json" id="fields_json" rows="10" required>{{ editing_form.get('fields') | tojson }}</textarea>
+      <label>Fields</label>
+      <div id="field-builder" class="field-builder"></div>
+      <input type="hidden" name="fields_json" id="fields_json" value='{{ editing_form.get("fields") | tojson or "[]" }}'>
 
       <button type="submit" class="btn btn-primary">{{ 'Update' if editing_form.get('id') else 'Create' }}</button>
       <a href="/admin/forms" class="btn btn-ghost">Cancel</a>
     </form>
   </div>
+
+<style>
+.field-builder { margin-bottom: 16px; }
+.field-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.field-card-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.field-card-row label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 2px;
+}
+.field-card-row input,
+.field-card-row select {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  outline: none;
+}
+.field-card-row input:focus,
+.field-card-row select:focus {
+  border-color: #2563eb;
+}
+.field-card-row input[type="text"] { width: auto; min-width: 100px; }
+.field-card-row input[type="checkbox"] { width: auto; }
+.field-card-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.field-card-actions button {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #555;
+}
+.field-card-actions button:hover { background: #f0f0f0; }
+.field-card-actions .btn-del { color: #ef4444; border-color: #fecaca; }
+.field-card-actions .btn-del:hover { background: #fef2f2; }
+.add-field-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px dashed #2563eb;
+  background: transparent;
+  color: #2563eb;
+  margin-bottom: 12px;
+}
+.add-field-btn:hover { background: #eff6ff; }
+.field-options-input { width: 100% !important; margin-top: 4px; }
+</style>
+
+<script>
+(function() {
+  var fields = [];
+  var hidden = document.getElementById('fields_json');
+  var container = document.getElementById('field-builder');
+
+  try { fields = JSON.parse(hidden.value || '[]'); } catch(e) { fields = []; }
+
+  function slugify(s) {
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'field';
+  }
+
+  function render() {
+    var html = '';
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i];
+      var optsHtml = '';
+      if (f.type === 'select') {
+        var vals = (f.options || []).join(', ');
+        optsHtml = '<input type="text" class="field-options-input" value="' + vals.replace(/"/g, '&quot;') + '" placeholder="comma-separated options" onchange="window._syncField(' + i + ', \'options\', this.value.split(\',\\s*\'|\\s+))">';
+      }
+      html += '<div class="field-card">';
+      html += '<div class="field-card-row">';
+      html += '<label>Label <input type="text" value="' + (f.label||'').replace(/"/g,'&quot;') + '" onchange="window._syncField(' + i + ', \'label\', this.value); window._autoName(' + i + ', this.value)" oninput="window._syncField(' + i + ', \'label\', this.value)"></label>';
+      html += '<label>Type <select onchange="window._syncField(' + i + ', \'type\', this.value); render()">';
+      var types = ['text','email','textarea','select','checkbox','tel','number','url'];
+      for (var t = 0; t < types.length; t++) {
+        html += '<option value="' + types[t] + '"' + (f.type === types[t] ? ' selected' : '') + '>' + types[t] + '</option>';
+      }
+      html += '</select></label>';
+      html += '<label><input type="checkbox"' + (f.required ? ' checked' : '') + ' onchange="window._syncField(' + i + ', \'required\', this.checked)"> Required</label>';
+      html += '<label>Placeholder <input type="text" value="' + (f.placeholder||'').replace(/"/g,'&quot;') + '" onchange="window._syncField(' + i + ', \'placeholder\', this.value)"></label>';
+      html += '</div>';
+      if (optsHtml) {
+        html += '<div class="field-card-row">' + optsHtml + '</div>';
+      }
+      html += '<div class="field-card-row" style="justify-content:space-between">';
+      html += '<span style="font-size:0.75rem;color:#999">name: ' + (f.name||slugify(f.label||'field')) + '</span>';
+      html += '<div class="field-card-actions">';
+      if (i > 0) html += '<button onclick="window._moveField(' + i + ', -1)">▲</button>';
+      if (i < fields.length - 1) html += '<button onclick="window._moveField(' + i + ', 1)">▼</button>';
+      html += '<button class="btn-del" onclick="window._delField(' + i + ')">✕</button>';
+      html += '</div></div></div>';
+    }
+    container.innerHTML = html;
+    syncHidden();
+  }
+
+  window._syncField = function(idx, key, val) {
+    if (idx >= 0 && idx < fields.length) {
+      fields[idx][key] = val;
+      syncHidden();
+    }
+  };
+  window._autoName = function(idx, label) {
+    if (idx >= 0 && idx < fields.length && !fields[idx]._nameEdited) {
+      fields[idx].name = slugify(label);
+      render();
+    }
+  };
+  window._moveField = function(idx, dir) {
+    var target = idx + dir;
+    if (target < 0 || target >= fields.length) return;
+    var tmp = fields[idx];
+    fields[idx] = fields[target];
+    fields[target] = tmp;
+    render();
+  };
+  window._delField = function(idx) {
+    fields.splice(idx, 1);
+    render();
+  };
+  window._addField = function() {
+    fields.push({name: 'field' + (fields.length+1), label: 'Field ' + (fields.length+1), type: 'text', required: false, placeholder: ''});
+    render();
+    // scroll to bottom
+    container.scrollTop = container.scrollHeight;
+  };
+
+  function syncHidden() {
+    hidden.value = JSON.stringify(fields);
+  }
+
+  render();
+  window._addFieldBtn = document.createElement('button');
+  _addFieldBtn.className = 'add-field-btn';
+  _addFieldBtn.innerHTML = '+ Add Field';
+  _addFieldBtn.type = 'button';
+  _addFieldBtn.onclick = window._addField;
+  container.parentNode.insertBefore(_addFieldBtn, container);
+})();
+</script>
 {% else %}
   <div class="form-list">
     {% for form in forms %}
