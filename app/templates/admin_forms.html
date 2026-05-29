@@ -1,0 +1,55 @@
+<div class="dashboard-header">
+  <h1>Forms</h1>
+  <a href="/admin/forms/new" class="btn btn-primary">New Form</a>
+</div>
+
+{% if editing_form is defined and editing_form %}
+  <div class="form-edit">
+    <h2>{{ 'Edit Form' if editing_form.get('id') else 'New Form' }}</h2>
+    {% if editing_form.get('id') %}
+    <form method="post" action="/admin/forms" hx-put="/admin/form/{{ editing_form['id'] }}" hx-target="main.content" hx-swap="innerHTML">
+    {% else %}
+    <form method="post" action="/admin/forms" hx-post="/admin/forms" hx-target="main.content" hx-swap="innerHTML">
+    {% endif %}
+      <label for="slug">Slug</label>
+      <input type="text" name="slug" id="slug" value="{{ editing_form.get('slug', '') }}" required {{ 'readonly' if editing_form.get('id') }}>
+
+      <label for="title">Title</label>
+      <input type="text" name="title" id="title" value="{{ editing_form.get('title', 'Contact Form') }}" required>
+
+      <label for="fields_json">Fields (JSON)</label>
+      <textarea name="fields_json" id="fields_json" rows="10" required>{{ editing_form.get('fields') | tojson }}</textarea>
+
+      <button type="submit" class="btn btn-primary">{{ 'Update' if editing_form.get('id') else 'Create' }}</button>
+      <a href="/admin/forms" class="btn btn-ghost">Cancel</a>
+    </form>
+  </div>
+{% else %}
+  <div class="form-list">
+    {% for form in forms %}
+      <div class="form-item">
+        <div>
+          <h3>{{ form['title'] }}</h3>
+          <div class="slug">/form/{{ form['slug'] }}</div>
+        </div>
+        <div class="table-actions">
+          <a href="/admin/form/{{ form['id'] }}" class="btn btn-sm btn-ghost">Edit</a>
+          <button
+            class="btn btn-sm btn-danger"
+            hx-delete="/admin/form/{{ form['id'] }}"
+            hx-target="closest .form-item"
+            hx-swap="outerHTML swap:1s"
+            hx-confirm="Delete this form and all its submissions?"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    {% endfor %}
+    {% if forms|length == 0 %}
+      <div class="empty-state">
+        <p>No forms yet. Create your first form.</p>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}

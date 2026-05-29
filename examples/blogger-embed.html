@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Embed Form - Blogger</title>
+  <style>
+    body { font-family: Georgia, 'Times New Roman', serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    h2 { font-size: 1.25rem; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+    .cf-form { margin: 16px 0; }
+    .cf-form label { display: block; margin-bottom: 4px; font-size: 0.875rem; font-weight: bold; }
+    .cf-form input, .cf-form textarea {
+      width: 100%; padding: 8px; border: 1px solid #ccc;
+      border-radius: 4px; font-family: inherit; font-size: 0.9375rem;
+      margin-bottom: 12px; box-sizing: border-box;
+    }
+    .cf-form textarea { min-height: 120px; }
+    .cf-form button {
+      background: #336699; color: #fff; border: none;
+      padding: 10px 24px; font-size: 0.9375rem; border-radius: 4px;
+      cursor: pointer;
+    }
+    .cf-form button:hover { background: #225588; }
+    .cf-success { color: #336633; padding: 12px; background: #f0f8f0; border-radius: 4px; margin: 12px 0; }
+    .cf-error { color: #cc3333; padding: 12px; background: #fff0f0; border-radius: 4px; margin: 12px 0; }
+    code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 0.8125rem; }
+    pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 0.8125rem; }
+  </style>
+</head>
+<body>
+  <h2>Contact Us</h2>
+  <p>Have a question or comment? Send us a message using the form below.</p>
+
+  <form class="cf-form" id="contactForm" action="https://YOUR_APP.railway.app/form/contact" method="post">
+    <label for="name">Name *</label>
+    <input type="text" id="name" name="name" required>
+
+    <label for="email">Email *</label>
+    <input type="email" id="email" name="email" required>
+
+    <label for="message">Message *</label>
+    <textarea id="message" name="message" required></textarea>
+
+    <button type="submit">Send Message</button>
+  </form>
+
+  <div id="formResponse"></div>
+
+  <hr style="margin: 32px 0;">
+
+  <h2>Installation Instructions</h2>
+  <p>To embed this form in your Blogger blog:</p>
+
+  <ol>
+    <li>
+      <strong>Deploy the backend</strong> — Click the "Deploy on Railway" button from the README
+      and set the required environment variables (<code>DATABASE_URL</code> and <code>ADMIN_PASSWORD</code>).
+    </li>
+    <li>
+      <strong>Get your app URL</strong> — After deployment, Railway gives your app a
+      <code>*.railway.app</code> domain. Copy it.
+    </li>
+    <li>
+      <strong>Replace the URL</strong> — In the form above, replace
+      <code>YOUR_APP.railway.app</code> with your actual app URL.
+    </li>
+    <li>
+      <strong>Add to Blogger</strong>:
+      <ul>
+        <li>Go to your Blogger dashboard → Layout → Add a Gadget</li>
+        <li>Choose "HTML/JavaScript"</li>
+        <li>Paste the form HTML (from the code block below)</li>
+        <li>Save and arrange the gadget where you want it</li>
+      </ul>
+    </li>
+  </ol>
+
+  <h3>HTML to copy into Blogger</h3>
+  <pre>&lt;!-- Contact Form --&gt;
+&lt;style&gt;
+.cf-form input, .cf-form textarea {
+  width: 100%; padding: 8px; border: 1px solid #ccc;
+  border-radius: 4px; font-family: Georgia, serif;
+  font-size: 14px; margin-bottom: 10px; box-sizing: border-box;
+}
+.cf-form textarea { min-height: 100px; }
+.cf-form button {
+  background: #336699; color: #fff; border: none;
+  padding: 10px 24px; font-size: 14px; border-radius: 4px;
+  cursor: pointer;
+}
+.cf-form button:hover { background: #225588; }
+.cf-success { color: #336633; }
+.cf-error { color: #cc3333; }
+&lt;/style&gt;
+
+&lt;form class="cf-form" id="bloggerForm"
+  action="https://YOUR_APP.railway.app/form/contact"
+  method="post"&gt;
+  &lt;label for="name"&gt;Name *&lt;/label&gt;
+  &lt;input type="text" id="name" name="name" required&gt;
+
+  &lt;label for="email"&gt;Email *&lt;/label&gt;
+  &lt;input type="email" id="email" name="email" required&gt;
+
+  &lt;label for="message"&gt;Message *&lt;/label&gt;
+  &lt;textarea id="message" name="message" required&gt;&lt;/textarea&gt;
+
+  &lt;button type="submit"&gt;Send Message&lt;/button&gt;
+&lt;/form&gt;</pre>
+
+  <script>
+    // Optional: HTMX-free AJAX submission for Blogger
+    document.getElementById('contactForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const respDiv = document.getElementById('formResponse');
+
+      try {
+        const formData = new FormData(form);
+        const resp = await fetch(form.action, { method: 'POST', body: formData });
+        const data = await resp.json();
+
+        if (resp.ok) {
+          respDiv.innerHTML = '<div class="cf-success">' + data.message + '</div>';
+          form.reset();
+        } else {
+          respDiv.innerHTML = '<div class="cf-error">' + (data.detail || 'An error occurred') + '</div>';
+        }
+      } catch (err) {
+        respDiv.innerHTML = '<div class="cf-error">Could not submit form. Please try again later.</div>';
+      }
+    });
+  </script>
+</body>
+</html>

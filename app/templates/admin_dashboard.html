@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Contact Form</title>
+  <link rel="stylesheet" href="/static/admin.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJGH6yndiB+E4eCH9pQZb1+YDNRtRgC1iHslUCp" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="layout">
+    <nav class="sidebar">
+      <h2>Contact Form</h2>
+      <ul>
+        <li><a href="/admin" class="{% if not show_forms and not editing_form %}active{% endif %}">Dashboard</a></li>
+        <li><a href="/admin/forms" class="{% if show_forms %}active{% endif %}">Forms</a></li>
+      </ul>
+      <div class="sidebar-footer">
+        <a href="/admin/logout">Logout</a>
+      </div>
+    </nav>
+    <main class="content">
+      {% if show_forms %}
+        {% include "admin_forms.html" with context %}
+      {% elif editing_form is defined and editing_form %}
+        {% include "admin_forms.html" with context %}
+      {% else %}
+        {% include "admin_submissions.html" with context %}
+      {% endif %}
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,51 @@
+import asyncpg
+from app.config import settings
+
+
+async def create_pool() -> asyncpg.Pool:
+    return await asyncpg.create_pool(settings.database_url, min_size=2, max_size=10)
+
+
+async def init_db(pool: asyncpg.Pool):
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS forms (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                slug VARCHAR(100) UNIQUE NOT NULL,
+                title VARCHAR(255) NOT NULL DEFAULT 'Contact Form',
+                fields JSONB NOT NULL DEFAULT '[]',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS submissions (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                form_slug VARCHAR(100) NOT NULL REFERENCES forms(slug),
+                data JSONB NOT NULL,
+                metadata JSONB NOT NULL DEFAULT '{}',
+                is_read BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        """)
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_submissions_form_slug ON submissions(form_slug);
+        """)
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_submissions_created_at ON submissions(created_at DESC);
+        """)
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_submissions_is_read ON submissions(is_read);
+        """)
+
+        existing = await conn.fetchrow("SELECT id FROM forms WHERE slug = 'contact'")
+        if not existing:
+            default_fields = [
+                {"name": "name", "type": "text", "required": True, "label": "Your Name"},
+                {"name": "email", "type": "email", "required": True, "label": "Your Email"},
+                {"name": "message", "type": "textarea", "required": True, "label": "Message"},
+            ]
+            await conn.execute(
+                "INSERT INTO forms (slug, title, fields) VALUES ($1, $2, $3)",
+                "contact", "Contact Form", default_fields,
+            )
