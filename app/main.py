@@ -72,6 +72,16 @@ async def health(request: Request):
         "status": "healthy",
         "database": "connected" if db_ok else "disconnected",
     }
+@app.get("/form/{slug}", response_class=HTMLResponse)
+async def public_form(request: Request, slug: str):
+    pool = request.app.state.pool
+    form_def = await get_form_by_slug(pool, slug)
+    if not form_def:
+        raise HTTPException(status_code=404, detail="Form not found")
+    return await TemplateResponse(
+        "public_form.html",
+        {"request": request, "form": form_def, "settings": settings},
+    )
 @app.post("/form/{slug}")
 async def submit_form(request: Request, slug: str):
     pool = request.app.state.pool
@@ -139,6 +149,10 @@ async def submit_form(request: Request, slug: str):
         )
     if settings.form_recipient_email:
         await send_notification(name_val, email_val, submission_data.get("message", ""))
+    if _wants_html(request):
+        return HTMLResponse(
+            '<div class="success">Thank you! Your submission was received.</div>'
+        )
     return JSONResponse(
         status_code=201,
         content={"status": "ok", "message": "Form submitted successfully"},

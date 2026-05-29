@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ form.title }} - Contact Form</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJGH6yndiB+E4eCH9pQZb1+YDNRtRgC1iHslUCp" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.5;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 48px 16px;
+    }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .form-card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 40px;
+      width: 540px;
+      max-width: 100%;
+    }
+    .form-card h1 {
+      font-size: 1.5rem;
+      margin-bottom: 24px;
+      color: #1e293b;
+    }
+    .form-card label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #374151;
+    }
+    .form-card input[type="text"],
+    .form-card input[type="email"],
+    .form-card input[type="tel"],
+    .form-card input[type="number"],
+    .form-card input[type="url"],
+    .form-card textarea,
+    .form-card select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.9375rem;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color 0.15s;
+      font-family: inherit;
+      background: #fff;
+    }
+    .form-card input:focus,
+    .form-card textarea:focus,
+    .form-card select:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.1);
+    }
+    .form-card textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    .form-card select {
+      cursor: pointer;
+    }
+    .form-card .checkbox-group {
+      margin-bottom: 16px;
+    }
+    .form-card .checkbox-group label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 400;
+      cursor: pointer;
+    }
+    .form-card .checkbox-group input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+    .form-card button[type="submit"] {
+      width: 100%;
+      padding: 10px 16px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .form-card button[type="submit"]:hover { background: #1d4ed8; }
+    .form-card button[type="submit"]:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    #form-response {
+      margin-top: 16px;
+    }
+    #form-response .success {
+      background: #dcfce7;
+      border: 1px solid #22c55e;
+      color: #166534;
+      padding: 12px 16px;
+      border-radius: 6px;
+    }
+    #form-response .error {
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+    .field-required::after {
+      content: " *";
+      color: #ef4444;
+    }
+    .honeypot {
+      position: absolute;
+      left: -9999px;
+      opacity: 0;
+      height: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-card">
+    <h1>{{ form.title }}</h1>
+
+    <form
+      hx-post="{{ request.base_url }}form/{{ form.slug }}"
+      hx-target="#form-response"
+      hx-swap="innerHTML"
+      method="post"
+      action="{{ request.base_url }}form/{{ form.slug }}"
+    >
+      {% for field in form.fields %}
+        {% if field.type == 'textarea' %}
+          <label{% if field.required %} class="field-required"{% endif %}>{{ field.label }}</label>
+          <textarea name="{{ field.name }}" placeholder="{{ field.label }}"{% if field.required %} required{% endif %}></textarea>
+        {% elif field.type == 'select' %}
+          <label{% if field.required %} class="field-required"{% endif %}>{{ field.label }}</label>
+          <select name="{{ field.name }}"{% if field.required %} required{% endif %}>
+            <option value="">Select {{ field.label }}</option>
+            {% for opt in field.options %}
+            <option value="{{ opt }}">{{ opt }}</option>
+            {% endfor %}
+          </select>
+        {% elif field.type == 'checkbox' %}
+          <div class="checkbox-group">
+            <label>
+              <input type="checkbox" name="{{ field.name }}" value="yes"{% if field.required %} required{% endif %}>
+              {{ field.label }}{% if field.required %} <span style="color:#ef4444">*</span>{% endif %}
+            </label>
+          </div>
+        {% else %}
+          <label{% if field.required %} class="field-required"{% endif %}>{{ field.label }}</label>
+          <input type="{{ field.type }}" name="{{ field.name }}" placeholder="{{ field.label }}"{% if field.required %} required{% endif %}>
+        {% endif %}
+      {% endfor %}
+
+      <div class="honeypot">
+        <label>Website</label>
+        <input type="text" name="website" tabindex="-1" autocomplete="off">
+      </div>
+
+      {% if settings.cap_endpoint %}
+      <script src="https://cdn.jsdelivr.net/npm/cap-widget"></script>
+      <cap-widget required
+        data-cap-api-endpoint="{{ settings.cap_endpoint }}">
+      </cap-widget>
+      {% endif %}
+
+      <button type="submit">Send</button>
+    </form>
+
+    <div id="form-response"></div>
+  </div>
+
+  {% if settings.captcha_mode == "pow" %}
+  <script>
+    (function() {
+      var form = document.querySelector('form');
+      if (!form) return;
+      fetch('/pow-challenge?difficulty=4')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var s = document.createElement('input');
+          s.type = 'hidden'; s.name = 'pow_secret'; s.value = data.secret;
+          form.appendChild(s);
+          var n = document.createElement('input');
+          n.type = 'hidden'; n.name = 'pow_nonce'; n.value = data.nonce;
+          form.appendChild(n);
+          var d = document.createElement('input');
+          d.type = 'hidden'; d.name = 'pow_difficulty'; d.value = data.difficulty;
+          form.appendChild(d);
+        });
+    })();
+  </script>
+  {% endif %}
+</body>
+</html>
