@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, Query, Request, Response
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
-from app.templates_ import templates
+from app.templates_ import TemplateResponse
 
 from app import db as db_module
 from app.config import settings
@@ -21,7 +21,7 @@ def auth_required(request: Request):
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return await templates.TemplateResponse("admin_login.html", {"request": request})
+    return await TemplateResponse("admin_login.html", {"request": request})
 
 
 @router.post("/login")
@@ -29,7 +29,7 @@ async def login(request: Request, password: str = Form(...)):
     if password == settings.admin_password:
         request.session["authenticated"] = True
         return RedirectResponse(url="/admin", status_code=302)
-    return await templates.TemplateResponse(
+    return await TemplateResponse(
         "admin_login.html",
         {"request": request, "error": "Invalid password"},
     )
@@ -56,7 +56,7 @@ async def dashboard(request: Request):
 
     total_pages = max(1, (total + 19) // 20)
 
-    return await templates.TemplateResponse(
+    return await TemplateResponse(
         "admin_dashboard.html",
         {
             "request": request,
@@ -112,7 +112,7 @@ async def submissions_list(
 
     total_pages = max(1, (total + per_page - 1) // per_page)
 
-    return await templates.TemplateResponse(
+    return await TemplateResponse(
         "admin_dashboard.html",
         {
             "request": request,
@@ -181,7 +181,7 @@ async def list_forms(request: Request):
     auth_required(request)
     pool = request.app.state.pool
     forms = await get_forms(pool)
-    return await templates.TemplateResponse(
+    return await TemplateResponse(
         "admin_dashboard.html",
         {"request": request, "forms": forms, "show_forms": True},
     )
@@ -190,7 +190,7 @@ async def list_forms(request: Request):
 @router.get("/forms/new", response_class=HTMLResponse)
 async def new_form_page(request: Request):
     auth_required(request)
-    return await templates.TemplateResponse(
+    return await TemplateResponse(
         "admin_dashboard.html",
         {"request": request, "editing_form": None},
     )
@@ -216,7 +216,7 @@ async def edit_form_page(request: Request, form_id: str):
     auth_required(request)
     pool = request.app.state.pool
     form = await get_form(pool, form_id)
-    return await templates.TemplateResponse(
+    return await TemplateResponse(
         "admin_dashboard.html",
         {"request": request, "editing_form": form, "forms": [form]},
     )

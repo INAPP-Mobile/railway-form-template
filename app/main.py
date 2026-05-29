@@ -6,7 +6,7 @@ from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from app.templates_ import templates
+from app.templates_ import TemplateResponse
 from starlette.middleware.sessions import SessionMiddleware
 from app import db as db_module
 from app.admin import router as admin_router
@@ -45,7 +45,7 @@ app.include_router(admin_router, prefix="/admin")
 async def embed_snippet(request: Request):
     pool = request.app.state.pool
     forms = await get_forms(pool)
-    return await templates.TemplateResponse(
+    return await TemplateResponse(
         "embed_snippet.html",
         {"request": request, "forms": forms},
     )
