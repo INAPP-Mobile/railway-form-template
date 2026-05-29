@@ -16,6 +16,30 @@ from app.forms import create_form, delete_form, get_form, get_form_by_slug, get_
 router = APIRouter()
 
 
+async def require_pool(request: Request):
+    pool = request.app.state.pool
+    if pool is None:
+        warning = request.session.pop("warning", None)
+        if warning is None and settings.admin_password is None:
+            warning = "ADMIN_PASSWORD not set — using default auth"
+        return await TemplateResponse(
+            "admin_dashboard.html",
+            {
+                "request": request,
+                "forms": [],
+                "submissions": [],
+                "page": 1,
+                "total_pages": 1,
+                "total": 0,
+                "search": "",
+                "form_slug": "",
+                "warning": warning,
+                "error": "Database not connected. The app is running in offline mode — form submissions require a PostgreSQL database.",
+            },
+        )
+    return None
+
+
 def auth_required(request: Request):
     if not request.session.get("authenticated"):
         raise HTTPException(status_code=303, headers={"Location": "/admin/login"})
@@ -51,6 +75,8 @@ async def logout(request: Request):
 async def dashboard(request: Request):
     auth_required(request)
     pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
     forms = await get_forms(pool)
 
     async with pool.acquire() as conn:
@@ -91,6 +117,8 @@ async def submissions_list(
 ):
     auth_required(request)
     pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
     per_page = 20
     offset = (page - 1) * per_page
 
@@ -142,6 +170,8 @@ async def submissions_list(
 async def toggle_read(request: Request, sub_id: str):
     auth_required(request)
     pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             "UPDATE submissions SET is_read = NOT is_read WHERE id = $1 RETURNING is_read",
@@ -155,6 +185,8 @@ async def toggle_read(request: Request, sub_id: str):
 async def delete_submission(request: Request, sub_id: str):
     auth_required(request)
     pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
     async with pool.acquire() as conn:
         await conn.execute("DELETE FROM submissions WHERE id = $1", sub_id)
     return PlainTextResponse("ok")
@@ -164,6 +196,8 @@ async def delete_submission(request: Request, sub_id: str):
 async def export_csv(request: Request):
     auth_required(request)
     pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT * FROM submissions ORDER BY created_at DESC"
@@ -191,6 +225,8 @@ async def export_csv(request: Request):
 async def list_forms(request: Request):
     auth_required(request)
     pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
     forms = await get_forms(pool)
     return await TemplateResponse(
         "admin_dashboard.html",
@@ -201,6 +237,9 @@ async def list_forms(request: Request):
 @router.get("/forms/new", response_class=HTMLResponse)
 async def new_form_page(request: Request):
     auth_required(request)
+    pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
     return await TemplateResponse(
         "admin_dashboard.html",
         {"request": request, "editing_form": None},
@@ -216,6 +255,8 @@ async def create_form_route(
 ):
     auth_required(request)
     pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
     import json
     fields = json.loads(fields_json)
     await create_form(pool, slug, title, fields)
@@ -226,6 +267,8 @@ async def create_form_route(
 async def edit_form_page(request: Request, form_id: str):
     auth_required(request)
     pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
     form = await get_form(pool, form_id)
     return await TemplateResponse(
         "admin_dashboard.html",
@@ -242,6 +285,8 @@ async def update_form_route(
 ):
     auth_required(request)
     pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
     import json
     fields = json.loads(fields_json)
     await update_form(pool, form_id, title, fields)
@@ -252,5 +297,7 @@ async def update_form_route(
 async def delete_form_route(request: Request, form_id: str):
     auth_required(request)
     pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
     ok = await delete_form(pool, form_id)
     return PlainTextResponse("ok" if ok else "not found")

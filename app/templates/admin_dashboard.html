@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin - Contact Form</title>
   <link rel="stylesheet" href="/static/admin.css">
+  <style>
+    .error-banner {
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+  </style>
   <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJGH6yndiB+E4eCH9pQZb1+YDNRtRgC1iHslUCp" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -22,6 +32,9 @@
     <main class="content">
       {% if warning %}
         <div class="warning-banner">{{ warning }}</div>
+      {% endif %}
+      {% if error %}
+        <div class="error-banner">{{ error }}</div>
       {% endif %}
       {% if show_forms %}
         {% include "admin_forms.html" with context %}
