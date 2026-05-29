@@ -45,7 +45,7 @@ app.include_router(admin_router, prefix="/admin")
 async def embed_snippet(request: Request):
     pool = request.app.state.pool
     forms = await get_forms(pool)
-    return templates.TemplateResponse(
+    return await templates.TemplateResponse(
         "embed_snippet.html",
         {"request": request, "forms": forms},
     )
