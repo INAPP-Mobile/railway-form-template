@@ -3,22 +3,32 @@ from typing import Optional
 import asyncpg
 
 
+def _parse_form(row):
+    """Parse a form row, ensuring 'fields' is a Python list, not a JSON string."""
+    if row is not None:
+        d = dict(row)
+        if isinstance(d.get("fields"), str):
+            d["fields"] = json.loads(d["fields"])
+        return d
+    return None
+
+
 async def get_forms(pool: asyncpg.Pool):
     async with pool.acquire() as conn:
         rows = await conn.fetch("SELECT * FROM forms ORDER BY created_at DESC")
-        return [dict(r) for r in rows]
+        return [_parse_form(r) for r in rows]
 
 
 async def get_form(pool: asyncpg.Pool, form_id: str):
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM forms WHERE id = $1", form_id)
-        return dict(row) if row else None
+        return _parse_form(row)
 
 
 async def get_form_by_slug(pool: asyncpg.Pool, slug: str):
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM forms WHERE slug = $1", slug)
-        return dict(row) if row else None
+        return _parse_form(row)
 
 
 async def create_form(pool: asyncpg.Pool, slug: str, title: str, fields: list):
@@ -27,7 +37,7 @@ async def create_form(pool: asyncpg.Pool, slug: str, title: str, fields: list):
             "INSERT INTO forms (slug, title, fields) VALUES ($1, $2, $3) RETURNING *",
             slug, title, json.dumps(fields),
         )
-        return dict(row)
+        return _parse_form(row)
 
 
 async def update_form(pool: asyncpg.Pool, form_id: str, title: str, fields: list):
@@ -36,7 +46,7 @@ async def update_form(pool: asyncpg.Pool, form_id: str, title: str, fields: list
             "UPDATE forms SET title = $1, fields = $2, updated_at = NOW() WHERE id = $3 RETURNING *",
             title, json.dumps(fields), form_id,
         )
-        return dict(row) if row else None
+        return _parse_form(row)
 
 
 async def delete_form(pool: asyncpg.Pool, form_id: str) -> bool:

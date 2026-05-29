@@ -3,8 +3,23 @@ import asyncpg
 from app.config import settings
 
 
+async def init_conn(conn: asyncpg.Connection):
+    """Initialize connection with JSONB codec for proper Python dict/list handling."""
+    await conn.set_type_codec(
+        'jsonb',
+        encoder=lambda x: json.dumps(x) if not isinstance(x, str) else x,
+        decoder=json.loads,
+        schema='pg_catalog',
+    )
+
+
 async def create_pool() -> asyncpg.Pool:
-    return await asyncpg.create_pool(settings.database_url, min_size=2, max_size=10)
+    return await asyncpg.create_pool(
+        settings.database_url,
+        init=init_conn,
+        min_size=2,
+        max_size=10,
+    )
 
 
 async def init_db(pool: asyncpg.Pool):
