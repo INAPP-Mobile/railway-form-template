@@ -17,6 +17,8 @@ from app.forms import get_form_by_slug, get_forms
 from app.rate_limit import check_rate_limit, ensure_rate_limit_table
 
 def _wants_html(request: Request) -> bool:
+    if request.headers.get("hx-request") == "true":
+        return True
     accept = request.headers.get("accept", "")
     return "text/html" in accept or "application/xhtml" in accept
 
@@ -96,10 +98,9 @@ async def submit_form(request: Request, slug: str):
     captcha_ok, captcha_err = await verify_captcha(request, data)
     if not captcha_ok:
         if _wants_html(request):
-            return HTMLResponse(
-                status_code=400,
-                content='<div class="error-banner">' + (captcha_err or "CAPTCHA failed") + '</div>',
-            )
+            msg = captcha_err or "CAPTCHA verification failed"
+            html = '<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px;margin-bottom:16px">' + msg + '</div>'
+            return HTMLResponse(status_code=400, content=html)
         raise HTTPException(status_code=400, detail=captcha_err or "CAPTCHA failed")
     cap_token = data.pop("cap_token", None)
     pow_secret = data.pop("pow_secret", None)
