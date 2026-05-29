@@ -258,7 +258,10 @@ async def create_form_route(
     if pool is None:
         return await require_pool(request)
     import json
-    fields = json.loads(fields_json)
+    try:
+        fields = json.loads(fields_json)
+    except json.JSONDecodeError as e:
+        return HTMLResponse(status_code=400, content=f"Invalid fields JSON: {e}")
     await create_form(pool, slug, title, fields)
     return HTMLResponse(status_code=200, headers={"HX-Redirect": "/admin/forms"}, content="")
 
@@ -288,7 +291,10 @@ async def update_form_route(
     if pool is None:
         return await require_pool(request)
     import json
-    fields = json.loads(fields_json)
+    try:
+        fields = json.loads(fields_json)
+    except json.JSONDecodeError as e:
+        return HTMLResponse(status_code=400, content=f"Invalid fields JSON: {e}")
     await update_form(pool, form_id, title, fields)
     return HTMLResponse(status_code=200, headers={"HX-Redirect": "/admin/forms"}, content="")
 
