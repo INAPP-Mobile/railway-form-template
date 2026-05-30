@@ -269,7 +269,13 @@ async def create_form_route(
         await create_form(pool, slug, title, fields)
     except asyncpg.exceptions.UniqueViolationError:
         return HTMLResponse(status_code=400, content="A form with this slug already exists.")
-    return HTMLResponse(status_code=200, headers={"HX-Redirect": "/admin/forms"}, content="")
+    # Return the form list directly instead of HX-Redirect to avoid race conditions
+    # with HTMX 2.x redirect handling
+    forms = await get_forms(pool)
+    return await TemplateResponse(
+        "admin_forms.html",
+        {"request": request, "forms": forms},
+    )
 
 
 @router.get("/form/{form_id}", response_class=HTMLResponse)
@@ -305,7 +311,12 @@ async def update_form_route(
         await update_form(pool, form_id, title, fields)
     except asyncpg.exceptions.UniqueViolationError:
         return HTMLResponse(status_code=400, content="A form with this slug already exists.")
-    return HTMLResponse(status_code=200, headers={"HX-Redirect": "/admin/forms"}, content="")
+    # Return the form list directly instead of HX-Redirect for consistency
+    forms = await get_forms(pool)
+    return await TemplateResponse(
+        "admin_forms.html",
+        {"request": request, "forms": forms},
+    )
 
 
 @router.delete("/form/{form_id}")

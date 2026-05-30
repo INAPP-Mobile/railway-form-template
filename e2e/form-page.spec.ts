@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const BASE = process.env.E2E_BASE_URL || 'https://form-api-production-1576.up.railway.app';
+const BASE = process.env.E2E_BASE_URL || 'https://form-api-staging.up.railway.app';
 
 test.describe('Hosted Form Page', () => {
   test('renders form with correct title and fields', async ({ page }) => {

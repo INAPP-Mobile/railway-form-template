@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const BASE = process.env.E2E_BASE_URL || 'https://form-api-production-1576.up.railway.app';
+const BASE = process.env.E2E_BASE_URL || 'https://form-api-staging.up.railway.app';
 
 // Admin password from env or known value
 const ADMIN_PW = 'admin123';
@@ -107,7 +107,7 @@ test.describe('Form Builder UI', () => {
     await page.fill('input[name="slug"]', 'test-form-' + Date.now());
     await page.fill('input[name="title"]', 'Test Form');
     await page.locator('.add-field-btn').click();
-    await page.fill('.field-card input[type="text"]').first().fill('Full Name');
+    await page.locator('.field-card input[type="text"]').first().fill('Full Name');
     await page.locator('button[type="submit"]').click();
     await expect(page.locator('text=Test Form')).toBeVisible();
   });
@@ -125,7 +125,7 @@ test.describe('Form Builder UI', () => {
     await page.goto(`${BASE}/admin/forms`);
     await page.locator('a:has-text("Edit")').first().click();
     const slugInput = page.locator('input[name="slug"]');
-    await expect(slugInput).toBeDisabled();
+    await expect(slugInput).toHaveAttribute('readonly', '');
   });
 });
 
@@ -150,5 +150,40 @@ test.describe('Admin Dashboard', () => {
     await page.goto(`${BASE}/admin`);
     await page.click('text=Logout');
     await page.waitForURL('**/admin/login');
+  });
+});
+
+test.describe('Form Deletion', () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
+  test('delete a form removes it from the forms list', async ({ page }) => {
+    const slug = 'delete-test-' + Date.now();
+    const title = 'Delete Test Form';
+
+    await page.goto(`${BASE}/admin/forms/new`);
+    await page.fill('input[name="slug"]', slug);
+    await page.fill('input[name="title"]', title);
+    await page.locator('.add-field-btn').click();
+    await page.locator('.field-card input[type="text"]').first().fill('Full Name');
+    await page.locator('button[type="submit"]').click();
+
+    // Wait for form creation to complete before navigating
+    await expect(page.locator(`text=${title}`)).toBeVisible();
+
+    await page.goto(`${BASE}/admin/forms`);
+
+    const formItem = page.locator(`.form-item:has-text("${slug}")`);
+    await expect(formItem).toBeVisible();
+
+    page.once('dialog', dialog => {
+      expect(dialog.message()).toContain('Delete this form');
+      dialog.accept();
+    });
+
+    await formItem.locator('.btn-danger').click();
+
+    await expect(formItem).toHaveCount(0);
   });
 });

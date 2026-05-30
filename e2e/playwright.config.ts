@@ -5,7 +5,7 @@ export default defineConfig({
   timeout: 30000,
   retries: 1,
   use: {
-    baseURL: process.env.E2E_BASE_URL || 'https://form-api-production-1576.up.railway.app',
+    baseURL: process.env.E2E_BASE_URL || 'https://form-api-staging.up.railway.app',
     headless: true,
     screenshot: 'only-on-failure',
   },
