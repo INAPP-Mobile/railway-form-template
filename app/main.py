@@ -2,9 +2,11 @@ import json
 import secrets
 import uuid
 from contextlib import asynccontextmanager
+from urllib.parse import urljoin
+import httpx
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from app.templates_ import TemplateResponse
 from starlette.middleware.sessions import SessionMiddleware
@@ -202,3 +204,23 @@ async def submit_form(request: Request, slug: str):
 async def pow_challenge(difficulty: int = 4):
     challenge = generate_pow_challenge(difficulty)
     return challenge
+
+
+@app.api_route("/cap-proxy/{path:path}", methods=["GET", "POST", "OPTIONS", "HEAD"])
+async def cap_proxy(path: str, request: Request):
+    """Proxy requests to the Cap CAPTCHA service, adding CORS headers."""
+    if not settings.cap_endpoint:
+        return JSONResponse(status_code=503, content={"error": "CAP endpoint not configured"})
+    target_url = urljoin(settings.cap_endpoint.rstrip("/") + "/", path)
+    async with httpx.AsyncClient() as client:
+        resp = await client.request(
+            method=request.method,
+            url=target_url,
+            content=await request.body(),
+            headers={k: v for k, v in request.headers.items()
+                     if k.lower() not in ("host", "content-length", "transfer-encoding", "connection")},
+            params=request.query_params,
+        )
+    excluded = {"content-encoding", "content-length", "transfer-encoding", "connection"}
+    headers = {k: v for k, v in resp.headers.items() if k.lower() not in excluded}
+    return Response(content=resp.content, status_code=resp.status_code, headers=headers)
