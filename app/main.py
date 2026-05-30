@@ -122,6 +122,12 @@ async def submit_form(request: Request, slug: str):
             data = dict(body)
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid request body")
+
+    if not data:
+        if _wants_html(request):
+            return HTMLResponse(status_code=400, content='<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">No form data submitted</div>')
+        raise HTTPException(status_code=400, detail="No form data submitted")
+
     submission_data = {}
     email_val = ""
     name_val = ""
@@ -146,11 +152,18 @@ async def submit_form(request: Request, slug: str):
             email_val = val
         if fname == "name":
             name_val = val
-    cap_token = data.pop("cap_token", None)
-    pow_secret = data.pop("pow_secret", None)
-    pow_nonce = data.pop("pow_nonce", None)
-    pow_difficulty = data.pop("pow_difficulty", None)
-    _hp_website = data.pop("_hp_website", None)
+
+    # Fix 1: Check for unexpected/honeypot fields BEFORE popping system fields
+    form_field_names = {f.get("name") for f in form_def["fields"]}
+    system_fields = {"cap_token", "pow_secret", "pow_nonce", "pow_difficulty", "_hp_website"}
+    allowed_fields = form_field_names | system_fields
+    unexpected = [k for k in data if k not in allowed_fields]
+    if unexpected:
+        if _wants_html(request):
+            return HTMLResponse(status_code=400, content=f'<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Unexpected field detected</div>')
+        raise HTTPException(status_code=400, detail="Unexpected field detected")
+
+    # Fix 1 (continued): Check captcha/honeypot BEFORE popping system fields
     captcha_ok, captcha_err = await verify_captcha(request, data)
     if not captcha_ok:
         if _wants_html(request):
@@ -158,6 +171,13 @@ async def submit_form(request: Request, slug: str):
             html = '<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px;margin-bottom:16px">' + msg + '</div>'
             return HTMLResponse(status_code=400, content=html)
         raise HTTPException(status_code=400, detail=captcha_err or "CAPTCHA failed")
+
+    # Pop system fields (cleanup before DB insert)
+    data.pop("cap_token", None)
+    data.pop("pow_secret", None)
+    data.pop("pow_nonce", None)
+    data.pop("pow_difficulty", None)
+    data.pop("_hp_website", None)
     metadata = {
         "ip": ip,
         "user_agent": request.headers.get("user-agent", ""),

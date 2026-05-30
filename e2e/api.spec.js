@@ -40,7 +40,7 @@ test.describe('API Endpoints', () => {
   test('POST /form/{slug} with honeypot returns 400 JSON', async ({ request }) => {
     const resp = await request.post(BASE + '/form/contact', {
       headers: { 'Accept': 'application/json' },
-      form: { name: 'Bot', email: 'bot@test.com', message: 'spam', website: 'filled' },
+      form: { name: 'Bot', email: 'bot@test.com', message: 'spam', _hp_website: 'filled' },
     });
     expect(resp.status()).toBe(400);
   });

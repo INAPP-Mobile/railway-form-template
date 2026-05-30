@@ -79,7 +79,7 @@ test.describe('Form Submission', () => {
     await page.fill('textarea[name="message"]', 'spam');
     // Honeypot is visually hidden, but we fill it via evaluate
     await page.evaluate(() => {
-      const hp = document.querySelector('input[name="website"]') as HTMLInputElement;
+      const hp = document.querySelector('input[name="_hp_website"]') as HTMLInputElement;
       if (hp) hp.value = 'spammy-site';
     });
     await page.click('button[type="submit"]');

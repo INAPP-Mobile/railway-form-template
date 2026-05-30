@@ -114,12 +114,28 @@ test.describe('Form Builder UI', () => {
   });
 
   test('duplicate slug shows error', async ({ page }) => {
+    const uniqueSlug = 'contact-dup-' + Date.now();
+    // First submission creates the form
     await page.goto(`${BASE}/admin/forms/new`);
-    await page.fill('input[name="slug"]', 'contact');
-    await page.fill('input[name="title"]', 'Duplicate');
+    await page.fill('input[name="slug"]', uniqueSlug);
+    await page.fill('input[name="title"]', 'Test Dup');
+    await page.locator('.add-field-btn').click();
+    await page.locator('button[type="submit"]').click();
+    await expect(page.locator(`.form-item:has-text("${uniqueSlug}") h3`)).toBeVisible();
+    // Second submission with same slug triggers duplicate error
+    await page.goto(`${BASE}/admin/forms/new`);
+    await page.fill('input[name="slug"]', uniqueSlug);
+    await page.fill('input[name="title"]', 'Test Dup Again');
     await page.locator('.add-field-btn').click();
     await page.locator('button[type="submit"]').click();
     await expect(page.locator('text=already exists')).toBeVisible();
+    // Clean up: navigate to forms list and delete the created form
+    await page.goto(`${BASE}/admin/forms`);
+    // Click the delete button for our test form
+    const formItem = page.locator(`.form-item:has-text("${uniqueSlug}")`);
+    if (await formItem.count() > 0) {
+      await formItem.locator('button[type="submit"].delete-btn, a:has-text("Delete")').click();
+    }
   });
 
   test('edit existing form shows slug as readonly', async ({ page }) => {
@@ -155,6 +171,49 @@ test.describe('Admin Dashboard', () => {
 });
 
 test.describe('Form Deletion', () => {
+  let testFormSlug: string;
+
+  test.beforeAll(async ({ browser }) => {
+    // Create a dedicated test form so we don't pollute the 'contact' form's data
+    testFormSlug = 'e2e-test-form-' + Date.now();
+    const page = await browser.newPage();
+    await login(page);
+    await page.goto(`${BASE}/admin/forms/new`);
+    await page.fill('input[name="slug"]', testFormSlug);
+    await page.fill('input[name="title"]', 'E2E Test Form');
+    // Add fields matching contact form structure (name, email, message)
+    await page.locator('.add-field-btn').click();
+    await page.locator('.field-card input[type="text"]').first().fill('Full Name');
+    await page.locator('.add-field-btn').click();
+    // Second field — change type to email via the select
+    const fieldCards = page.locator('.field-card');
+    await fieldCards.nth(1).locator('select').selectOption('email');
+    await fieldCards.nth(1).locator('input[type="text"]').first().fill('Email');
+    await page.locator('.add-field-btn').click();
+    // Third field — textarea
+    await fieldCards.nth(2).locator('select').selectOption('textarea');
+    await fieldCards.nth(2).locator('input[type="text"]').first().fill('Message');
+    await page.locator('button[type="submit"]').click();
+    // Wait for form creation
+    await expect(page.locator(`.form-item:has-text("${testFormSlug}") h3`)).toBeVisible();
+    // Logout so subsequent tests can manage their own sessions
+    await page.goto(`${BASE}/admin/logout`);
+    await page.close();
+  });
+
+  test.afterAll(async ({ browser }) => {
+    // Clean up the test form and its submissions
+    const page = await browser.newPage();
+    await login(page);
+    await page.goto(`${BASE}/admin/forms`);
+    const formItem = page.locator(`.form-item:has-text("${testFormSlug}")`);
+    if (await formItem.isVisible()) {
+      page.once('dialog', dialog => dialog.accept());
+      await formItem.locator('.btn-danger').click();
+    }
+    await page.close();
+  });
+
   test.beforeEach(async ({ page }) => {
     await login(page);
   });
@@ -262,10 +321,12 @@ test.describe('Form Deletion', () => {
   });
 
   test('delete submission response should be empty HTML (no "ok" text)', async ({ page }) => {
-    // First create a submission via the contact form
-    await page.goto(`${BASE}/form/contact`);
+    // Use the dedicated test form (not 'contact') to avoid polluting contact form data
+    const formSlug = testFormSlug;
+
+    // First create a submission via the test form
+    await page.goto(`${BASE}/form/${formSlug}`);
     await page.waitForSelector('form');
-    // Fill the first visible text input (field names are dynamic — "name", "email", etc.)
     await page.locator('form input[type="text"]').first().fill('Delete E2E Test');
     await page.click('button[type="submit"]');
     // Wait for success message
@@ -277,8 +338,8 @@ test.describe('Form Deletion', () => {
     await page.click('button[type="submit"]');
     await page.waitForURL('**/admin');
 
-    // Get a submission ID from the table
-    await page.goto(`${BASE}/admin`);
+    // Get a submission ID from the table, filtered by our test form slug
+    await page.goto(`${BASE}/admin/submissions?form_slug=${formSlug}`);
     await page.waitForSelector('.table-wrapper');
 
     const rows = page.locator('.table-wrapper tbody tr');
@@ -393,6 +454,18 @@ test.describe('Submission Detail View', () => {
       waitUntil: 'networkidle',
     });
     expect(response?.status()).toBe(404);
+  });
+
+  test('toggle_read with invalid UUID returns 404', async ({ page }) => {
+    const response = await page.goto(`${BASE}/admin/submission/nonexistent-id/toggle`, {
+      waitUntil: 'networkidle',
+    });
+    expect(response?.status()).toBe(404);
+  });
+
+  test('delete_submission with invalid UUID returns 404', async ({ page }) => {
+    const response = await page.request.delete(`${BASE}/admin/submission/nonexistent-id`);
+    expect(response.status()).toBe(404);
   });
 
   test('back button returns to admin dashboard', async ({ page }) => {
