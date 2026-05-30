@@ -134,7 +134,7 @@ test.describe('Form Builder UI', () => {
     // Click the delete button for our test form
     const formItem = page.locator(`.form-item:has-text("${uniqueSlug}")`);
     if (await formItem.count() > 0) {
-      await formItem.locator('button[type="submit"].delete-btn, a:has-text("Delete")').click();
+      await formItem.locator('.btn-danger').click();
     }
   });
 
