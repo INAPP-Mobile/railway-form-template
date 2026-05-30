@@ -68,6 +68,8 @@ test.describe('Form Submission', () => {
     await page.fill('input[name="name"]', '');
     await page.fill('input[name="email"]', 'test@test.com');
     await page.fill('textarea[name="message"]', 'msg');
+    // Disable browser HTML5 validation so HTMX can fire and backend returns server-side error
+    await page.evaluate(() => { const f = document.querySelector('form'); if (f) f.noValidate = true; });
     await page.click('button[type="submit"]');
     await expect(page.locator('#form-response')).toContainText('required');
   });
@@ -82,12 +84,20 @@ test.describe('Form Submission', () => {
       const hp = document.querySelector('input[name="_hp_website"]') as HTMLInputElement;
       if (hp) hp.value = 'spammy-site';
     });
+    // Disable browser HTML5 validation and remove cap-widget (CORS error on staging blocks submit)
+    await page.evaluate(() => {
+      const form = document.querySelector('form');
+      if (form) form.noValidate = true;
+      document.querySelector('cap-widget')?.remove();
+    });
     await page.click('button[type="submit"]');
     await expect(page.locator('#form-response')).toContainText('CAPTCHA');
   });
 
   test('all fields empty shows first required error', async ({ page }) => {
     await page.goto(BASE + '/form/contact');
+    // Disable browser HTML5 validation so HTMX can fire and backend returns server-side error
+    await page.evaluate(() => { const f = document.querySelector('form'); if (f) f.noValidate = true; });
     await page.click('button[type="submit"]');
     await expect(page.locator('#form-response')).toContainText('Your Name');
   });
@@ -138,6 +148,8 @@ test.describe('Edge Cases', () => {
     await page.fill('input[name="name"]', 'Email Test');
     await page.fill('input[name="email"]', 'not-an-email');
     await page.fill('textarea[name="message"]', 'msg');
+    // Disable browser HTML5 type="email" validation so HTMX can fire
+    await page.evaluate(() => { const f = document.querySelector('form'); if (f) f.noValidate = true; });
     await page.click('button[type="submit"]');
     // HTMX submission - browser may or may not validate based on type="email"
     // The form should still handle it gracefully
