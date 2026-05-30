@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import json
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from app.templates_ import TemplateResponse
 
 import asyncpg
@@ -127,10 +127,10 @@ async def submissions_list(
         where_clauses = []
         params = []
         if search:
-            where_clauses.append("data::text ILIKE $1")
+            where_clauses.append(f"data::text ILIKE ${len(params)+1}")
             params.append(f"%{search}%")
         if form_slug:
-            where_clauses.append("form_slug = $2")
+            where_clauses.append(f"form_slug = ${len(params)+1}")
             params.append(form_slug)
 
         where = ""
@@ -153,8 +153,11 @@ async def submissions_list(
     total_pages = max(1, (total + per_page - 1) // per_page)
     forms = await get_forms(pool)
 
+    is_htmx = request.headers.get("HX-Request") == "true"
+    template = "admin_submissions.html" if is_htmx else "admin_dashboard.html"
+
     return await TemplateResponse(
-        "admin_dashboard.html",
+        template,
         {
             "request": request,
             "submissions": submissions,
@@ -184,6 +187,31 @@ async def toggle_read(request: Request, sub_id: str):
     return Response(status_code=200, headers={"HX-Refresh": "true"})
 
 
+@router.get("/submission/{sub_id}", response_class=HTMLResponse)
+async def submission_detail(request: Request, sub_id: str):
+    auth_required(request)
+    pool = request.app.state.pool
+    if pool is None:
+        return await require_pool(request)
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT * FROM submissions WHERE id = $1", sub_id
+        )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    submission = dict(row)
+    is_htmx = request.headers.get("HX-Request") == "true"
+    template = "admin_submission_detail.html" if is_htmx else "admin_dashboard.html"
+
+    return await TemplateResponse(
+        template,
+        {
+            "request": request,
+            "submission_detail": submission,
+        },
+    )
+
+
 @router.delete("/submission/{sub_id}")
 async def delete_submission(request: Request, sub_id: str):
     auth_required(request)
@@ -192,7 +220,7 @@ async def delete_submission(request: Request, sub_id: str):
         return await require_pool(request)
     async with pool.acquire() as conn:
         await conn.execute("DELETE FROM submissions WHERE id = $1", sub_id)
-    return PlainTextResponse("ok")
+    return HTMLResponse(status_code=200, content="")
 
 
 @router.get("/export")
@@ -326,4 +354,4 @@ async def delete_form_route(request: Request, form_id: str):
     if pool is None:
         return await require_pool(request)
     ok = await delete_form(pool, form_id)
-    return PlainTextResponse("ok" if ok else "not found")
+    return HTMLResponse(status_code=200, content="")

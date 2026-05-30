@@ -1,0 +1,136 @@
+<div class="dashboard-header">
+  <div>
+    <h1>Submission Detail</h1>
+    <p>{{ submission_detail['form_slug'] }} &middot; {{ submission_detail['created_at'].strftime('%Y-%m-%d %H:%M:%S') }}
+      <span class="badge {{ 'badge-unread' if not submission_detail['is_read'] else 'badge-read' }}">{{ 'unread' if not submission_detail['is_read'] else 'read' }}</span>
+    </p>
+  </div>
+  <div>
+    <a href="/admin" class="btn btn-ghost" hx-get="/admin" hx-target="main.content" hx-push-url="true">&larr; Back</a>
+  </div>
+</div>
+
+<div class="detail-card">
+  <h2 class="detail-section-title">Form Data</h2>
+  {% set data = submission_detail['data'] %}
+  {% if data is mapping %}
+    <div class="detail-rows">
+      {% for k, v in data.items() %}
+        <div class="detail-row">
+          <div class="detail-label">{{ k }}</div>
+          <div class="detail-value">
+            {% if v is none %}
+              <span class="detail-null">—</span>
+            {% elif v is string %}
+              {{ v }}
+            {% else %}
+              {{ v }}
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="detail-row">
+      <div class="detail-value">{{ data }}</div>
+    </div>
+  {% endif %}
+</div>
+
+<div class="detail-card">
+  <h2 class="detail-section-title">Metadata</h2>
+  <div class="detail-rows">
+    <pre class="detail-json">{{ submission_detail['metadata'] | tojson(indent=2) }}</pre>
+  </div>
+</div>
+
+<div class="detail-card detail-actions">
+  <button
+    class="btn btn-ghost"
+    hx-get="/admin/submission/{{ submission_detail['id'] }}/toggle"
+    hx-target="main.content"
+  >
+    {{ 'Mark read' if not submission_detail['is_read'] else 'Mark unread' }}
+  </button>
+  <button
+    class="btn btn-danger"
+    hx-delete="/admin/submission/{{ submission_detail['id'] }}"
+    hx-target="main.content"
+    hx-swap="innerHTML"
+    hx-confirm="Delete this submission?"
+  >
+    Delete
+  </button>
+</div>
+
+<style>
+  .detail-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    padding: 24px;
+    margin-bottom: 16px;
+    max-width: 720px;
+  }
+  .detail-section-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .detail-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .detail-row {
+    display: flex;
+    padding: 10px 0;
+    border-bottom: 1px solid #f5f5f5;
+  }
+  .detail-row:last-child {
+    border-bottom: none;
+  }
+  .detail-label {
+    width: 180px;
+    flex-shrink: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #555;
+    padding-top: 1px;
+  }
+  .detail-value {
+    flex: 1;
+    font-size: 0.9375rem;
+    color: #333;
+    word-break: break-word;
+  }
+  .detail-value-mono {
+    font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+    font-size: 0.8125rem;
+  }
+  .detail-null {
+    color: #bbb;
+    font-style: italic;
+  }
+  .detail-json {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 16px;
+    font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 0;
+  }
+  .detail-actions {
+    display: flex;
+    gap: 8px;
+  }
+</style>

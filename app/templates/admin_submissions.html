@@ -72,6 +72,15 @@
               <td>{{ sub['created_at'].strftime('%Y-%m-%d %H:%M') }}</td>
               <td>
                 <div class="table-actions">
+                  <a
+                    class="btn btn-sm btn-ghost"
+                    href="/admin/submission/{{ sub['id'] }}"
+                    hx-get="/admin/submission/{{ sub['id'] }}"
+                    hx-target="main.content"
+                    hx-push-url="true"
+                  >
+                    View
+                  </a>
                   <button
                     class="btn btn-sm btn-ghost"
                     hx-get="/admin/submission/{{ sub['id'] }}/toggle"

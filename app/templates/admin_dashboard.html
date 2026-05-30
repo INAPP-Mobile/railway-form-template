@@ -41,6 +41,8 @@
         {% include "admin_forms.html" with context %}
       {% elif editing_form is defined and editing_form %}
         {% include "admin_forms.html" with context %}
+      {% elif submission_detail is defined and submission_detail %}
+        {% include "admin_submission_detail.html" with context %}
       {% else %}
         {% include "admin_submissions.html" with context %}
       {% endif %}
