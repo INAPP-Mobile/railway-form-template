@@ -182,7 +182,7 @@
       {% if settings.cap_endpoint %}
       <script src="https://cdn.jsdelivr.net/npm/cap-widget"></script>
       <cap-widget
-        data-cap-api-endpoint="{{ settings.cap_endpoint }}">
+        data-cap-api-endpoint="{{ request.base_url }}cap-proxy/">
       </cap-widget>
       {% endif %}
 
