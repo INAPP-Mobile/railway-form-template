@@ -44,7 +44,7 @@
   </div>
 </div>
 
-<div class="detail-card detail-actions">
+<div class="detail-actions">
   <button
     class="btn btn-ghost"
     hx-get="/admin/submission/{{ submission_detail['id'] }}/toggle"
@@ -132,5 +132,10 @@
   .detail-actions {
     display: flex;
     gap: 8px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    padding: 24px;
+    max-width: 720px;
   }
 </style>

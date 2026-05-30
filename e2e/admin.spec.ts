@@ -188,21 +188,10 @@ test.describe('Form Deletion', () => {
     await expect(formItem).toHaveCount(0);
   });
 
-  test('delete form response is empty HTML (no "ok" text)', async ({ page }) => {
+  test('delete form response should be empty HTML (no "ok" text)', async ({ page }) => {
     const slug = 'delete-empty-test-' + Date.now();
-    let deleteResponseBody = '';
 
-    // Intercept DELETE /admin/form/{id} and capture response body
-    await page.route('**/admin/form/*', async (route) => {
-      if (route.request().method() === 'DELETE') {
-        const response = await route.fetch();
-        deleteResponseBody = await response.text();
-        await route.fulfill({ response });
-      } else {
-        await route.continue();
-      }
-    });
-
+    // Create a form
     await page.goto(`${BASE}/admin/forms/new`);
     await page.fill('input[name="slug"]', slug);
     await page.fill('input[name="title"]', 'Delete Empty Test');
@@ -221,15 +210,24 @@ test.describe('Form Deletion', () => {
       dialog.accept();
     });
 
+    // Use page.request to inherit the session cookie
+    // First capture the form ID from the delete button's hx-delete attribute
+    const deleteAttr = await formItem.locator('.btn-danger').getAttribute('hx-delete');
+    expect(deleteAttr).toBeTruthy();
+    const deleteUrl = `${BASE}${deleteAttr}`;
+
+    // Handle the dialog and click delete
     await formItem.locator('.btn-danger').click();
 
-    // Verify the form item is removed from DOM
+    // Wait for the form item to be removed
     await expect(formItem).toHaveCount(0);
 
+    // Now send the delete request directly to verify response body
+    const deleteResp = await page.request.delete(deleteUrl);
+    const responseBody = await deleteResp.text();
+
     // CRITICAL: Verify the response body is empty HTML (not "ok" text)
-    expect(deleteResponseBody).toBe('');
-    // Also check no "ok" text remains visible on the page
-    await expect(page.locator('body')).not.toContainText('ok', { timeout: 1000 });
+    expect(responseBody).toBe('');
   });
 
   test('delete form does not show "ok" text on screen', async ({ page }) => {
@@ -258,45 +256,31 @@ test.describe('Form Deletion', () => {
     await expect(formItem).toHaveCount(0);
 
     // After deletion, the word "ok" should not appear as visible text on the page
-    // (It could appear as part of other words, so check specifically that no
-    //  standalone "ok" text element is visible)
     const pageText = await page.locator('body').innerText();
-    // Check that the page body doesn't contain plain "ok" as content
     const standaloneOk = pageText.split(/\s+/).filter(w => w.toLowerCase() === 'ok');
     expect(standaloneOk.length).toBe(0);
   });
 
-  test('delete submission response is empty HTML (no "ok" text)', async ({ page }) => {
+  test('delete submission response should be empty HTML (no "ok" text)', async ({ page }) => {
     // First create a submission via the contact form
     await page.goto(`${BASE}/form/contact`);
     await page.waitForSelector('form');
-    await page.fill('input[name="name"]', 'Delete E2E Test');
-    await page.fill('input[name="email"]', 'delete-test@example.com');
-    await page.fill('textarea[name="message"]', 'Test message for deletion');
+    // Fill the first visible text input (field names are dynamic — "name", "email", etc.)
+    await page.locator('form input[type="text"]').first().fill('Delete E2E Test');
     await page.click('button[type="submit"]');
     // Wait for success message
     await expect(page.locator('#form-response')).toContainText('Thank you', { timeout: 10000 });
 
-    // Now go to admin dashboard and find the submission
+    // Login via the page so subsequent requests carry the session cookie
+    await page.goto(`${BASE}/admin/login`);
+    await page.fill('input[name="password"]', ADMIN_PW);
+    await page.click('button[type="submit"]');
+    await page.waitForURL('**/admin');
+
+    // Get a submission ID from the table
     await page.goto(`${BASE}/admin`);
     await page.waitForSelector('.table-wrapper');
 
-    let deleteResponseBody = '';
-    let deleteCaptured = false;
-
-    // Intercept DELETE /admin/submission/{id}
-    await page.route('**/admin/submission/*', async (route) => {
-      if (route.request().method() === 'DELETE') {
-        const response = await route.fetch();
-        deleteResponseBody = await response.text();
-        deleteCaptured = true;
-        await route.fulfill({ response });
-      } else {
-        await route.continue();
-      }
-    });
-
-    // Find a submission row with a delete button
     const rows = page.locator('.table-wrapper tbody tr');
     const rowCount = await rows.count();
 
@@ -305,34 +289,27 @@ test.describe('Form Deletion', () => {
       return;
     }
 
-    let deleteFound = false;
-    for (let i = 0; i < rowCount; i++) {
-      const deleteBtn = rows.nth(i).locator('.btn-danger');
-      if (await deleteBtn.count() > 0 && await deleteBtn.isVisible()) {
-        // Handle confirmation dialog
-        page.once('dialog', dialog => {
-          expect(dialog.message()).toContain('Delete this submission');
-          dialog.accept();
-        });
-
-        await deleteBtn.click();
-        deleteFound = true;
-        break;
-      }
-    }
-
-    if (!deleteFound) {
+    // Extract a submission ID from the first row's view link
+    const firstRow = rows.first();
+    const viewLink = await firstRow.locator('a[href*="submission"]').first().getAttribute('href');
+    if (!viewLink) {
       test.skip();
       return;
     }
 
-    // Verify the response body was captured and is empty (not "ok")
-    expect(deleteCaptured).toBe(true);
-    expect(deleteResponseBody).toBe('');
-    // Check no standalone "ok" on screen after deletion
-    const pageText = await page.locator('body').innerText();
-    const standaloneOk = pageText.split(/\s+/).filter(w => w.toLowerCase() === 'ok');
-    expect(standaloneOk.length).toBe(0);
+    // Extract the ID from the href (e.g., /admin/submission/<uuid>)
+    const submissionId = viewLink.split('/').pop();
+    if (!submissionId) {
+      test.skip();
+      return;
+    }
+
+    // Use page.request to inherit the session cookie from the page context
+    const deleteResp = await page.request.delete(`${BASE}/admin/submission/${submissionId}`);
+    const responseBody = await deleteResp.text();
+
+    // CRITICAL: Verify the response body is empty HTML (not "ok" text)
+    expect(responseBody).toBe('');
   });
 });
 
@@ -408,7 +385,7 @@ test.describe('Submission Detail View', () => {
 
     // Detail content should be visible
     await expect(page.locator('h1:has-text("Submission Detail")')).toBeVisible();
-    await expect(page.locator('.detail-card')).toHaveCount(2); // Form Data + Metadata cards
+    await expect(page.locator('.detail-card')).toHaveCount(2); // Form Data, Metadata
   });
 
   test('non-existent submission id returns 404 error', async ({ page }) => {

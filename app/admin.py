@@ -3,6 +3,7 @@ import io
 from datetime import datetime, timezone
 
 import json
+import uuid
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -175,6 +176,11 @@ async def submissions_list(
 @router.get("/submission/{sub_id}/toggle")
 async def toggle_read(request: Request, sub_id: str):
     auth_required(request)
+    # Validate UUID format
+    try:
+        uuid.UUID(sub_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Submission not found")
     pool = request.app.state.pool
     if pool is None:
         return await require_pool(request)
@@ -190,13 +196,21 @@ async def toggle_read(request: Request, sub_id: str):
 @router.get("/submission/{sub_id}", response_class=HTMLResponse)
 async def submission_detail(request: Request, sub_id: str):
     auth_required(request)
+    # Validate UUID format before hitting the database
+    try:
+        uuid.UUID(sub_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Submission not found")
     pool = request.app.state.pool
     if pool is None:
         return await require_pool(request)
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT * FROM submissions WHERE id = $1", sub_id
-        )
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT * FROM submissions WHERE id = $1", sub_id
+            )
+    except asyncpg.exceptions.DataError:
+        raise HTTPException(status_code=404, detail="Submission not found")
     if row is None:
         raise HTTPException(status_code=404, detail="Submission not found")
     submission = dict(row)
@@ -215,6 +229,11 @@ async def submission_detail(request: Request, sub_id: str):
 @router.delete("/submission/{sub_id}")
 async def delete_submission(request: Request, sub_id: str):
     auth_required(request)
+    # Validate UUID format
+    try:
+        uuid.UUID(sub_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Submission not found")
     pool = request.app.state.pool
     if pool is None:
         return await require_pool(request)
