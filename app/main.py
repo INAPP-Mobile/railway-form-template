@@ -127,7 +127,7 @@ async def submit_form(request: Request, slug: str):
 
     if not data:
         if _wants_html(request):
-            return HTMLResponse(status_code=400, content='<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">No form data submitted</div>')
+            return HTMLResponse(status_code=200, content='<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">No form data submitted</div>')
         raise HTTPException(status_code=400, detail="No form data submitted")
 
     submission_data = {}
@@ -139,7 +139,7 @@ async def submit_form(request: Request, slug: str):
         if fname not in data:
             if is_required:
                 if _wants_html(request):
-                    return HTMLResponse(status_code=400, content=f'<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Field "{field.get("label", fname)}" is required</div>')
+                    return HTMLResponse(status_code=200, content=f'<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Field "{field.get("label", fname)}" is required</div>')
                 raise HTTPException(status_code=400, detail=f"Field '{field.get('label', fname)}' is required")
             continue
         val = data[fname]
@@ -147,7 +147,7 @@ async def submit_form(request: Request, slug: str):
             val = val.strip()
         if is_required and not val:
             if _wants_html(request):
-                return HTMLResponse(status_code=400, content=f'<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Field "{field.get("label", fname)}" is required</div>')
+                return HTMLResponse(status_code=200, content=f'<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Field "{field.get("label", fname)}" is required</div>')
             raise HTTPException(status_code=400, detail=f"Field '{field.get('label', fname)}' is required")
         submission_data[fname] = val
         if field.get("type") == "email":
@@ -162,7 +162,7 @@ async def submit_form(request: Request, slug: str):
     unexpected = [k for k in data if k not in allowed_fields]
     if unexpected:
         if _wants_html(request):
-            return HTMLResponse(status_code=400, content=f'<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Unexpected field detected</div>')
+            return HTMLResponse(status_code=200, content=f'<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Unexpected field detected</div>')
         raise HTTPException(status_code=400, detail="Unexpected field detected")
 
     # Fix 1 (continued): Check captcha/honeypot BEFORE popping system fields
@@ -171,7 +171,7 @@ async def submit_form(request: Request, slug: str):
         if _wants_html(request):
             msg = captcha_err or "CAPTCHA verification failed"
             html = '<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px;margin-bottom:16px">' + msg + '</div>'
-            return HTMLResponse(status_code=400, content=html)
+            return HTMLResponse(status_code=200, content=html)
         raise HTTPException(status_code=400, detail=captcha_err or "CAPTCHA failed")
 
     # Pop system fields (cleanup before DB insert)
