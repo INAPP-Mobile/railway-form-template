@@ -1,6 +1,5 @@
 import csv
 import io
-import uuid
 from datetime import datetime, timezone
 
 import json
@@ -10,7 +9,6 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse,
 from app.templates_ import TemplateResponse
 
 import asyncpg
-from app import db as db_module
 from app.config import settings
 from app.forms import create_form, delete_form, get_form, get_form_by_slug, get_forms, update_form
 
@@ -43,6 +41,8 @@ async def require_pool(request: Request):
 
 def auth_required(request: Request):
     if not request.session.get("authenticated"):
+        if request.headers.get("HX-Request") == "true":
+            raise HTTPException(status_code=200, headers={"HX-Redirect": "/admin/login"})
         raise HTTPException(status_code=303, headers={"Location": "/admin/login"})
 
 
@@ -151,6 +151,7 @@ async def submissions_list(
         submissions = [dict(r) for r in rows]
 
     total_pages = max(1, (total + per_page - 1) // per_page)
+    forms = await get_forms(pool)
 
     return await TemplateResponse(
         "admin_dashboard.html",
@@ -162,6 +163,7 @@ async def submissions_list(
             "total": total,
             "search": search,
             "form_slug": form_slug,
+            "forms": forms,
             "partial": True,
         },
     )
@@ -179,7 +181,7 @@ async def toggle_read(request: Request, sub_id: str):
             sub_id,
         )
         is_read = row["is_read"] if row else False
-    return PlainTextResponse("read" if is_read else "unread")
+    return Response(status_code=200, headers={"HX-Refresh": "true"})
 
 
 @router.delete("/submission/{sub_id}")
@@ -243,7 +245,7 @@ async def new_form_page(request: Request):
         return await require_pool(request)
     return await TemplateResponse(
         "admin_dashboard.html",
-        {"request": request, "editing_form": None},
+        {"request": request, "editing_form": {"slug": "", "title": "Contact Form", "fields": []}},
     )
 
 

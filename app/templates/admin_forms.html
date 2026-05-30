@@ -117,7 +117,7 @@
       var optsHtml = '';
       if (f.type === 'select') {
         var vals = (f.options || []).join(', ');
-        optsHtml = '<input type="text" class="field-options-input" value="' + vals.replace(/"/g, '&quot;') + '" placeholder="comma-separated options" onchange="window._syncField(' + i + ', \'options\', this.value.split(\',\\s*\'|\\s+))">';
+        optsHtml = '<input type="text" class="field-options-input" value="' + vals.replace(/"/g, '&quot;') + '" placeholder="comma-separated options" onchange="window._syncField(' + i + ', \'options\', this.value.split(/\\s*,\\s*/))">';
       }
       html += '<div class="field-card">';
       html += '<div class="field-card-row">';

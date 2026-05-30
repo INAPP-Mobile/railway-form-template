@@ -41,7 +41,7 @@
 {% endfor %}
   &lt;script src="https://cdn.jsdelivr.net/npm/cap-widget"&gt;&lt;/script&gt;
   &lt;cap-widget required
-    data-cap-api-endpoint="https://your-cap.railway.app/YOUR_SITE_KEY/"&gt;
+    data-cap-api-endpoint="{{ settings.cap_endpoint or 'https://your-cap.railway.app/YOUR_SITE_KEY/' }}"&gt;
   &lt;/cap-widget&gt;
   &lt;button type="submit"&gt;Send&lt;/button&gt;
 &lt;/form&gt;</pre>
@@ -73,7 +73,7 @@
 {% endfor %}
   &lt;script src="https://cdn.jsdelivr.net/npm/cap-widget"&gt;&lt;/script&gt;
   &lt;cap-widget required
-    data-cap-api-endpoint="https://your-cap.railway.app/YOUR_SITE_KEY/"&gt;
+    data-cap-api-endpoint="{{ settings.cap_endpoint or 'https://your-cap.railway.app/YOUR_SITE_KEY/' }}"&gt;
   &lt;/cap-widget&gt;
   &lt;button type="submit"&gt;Send&lt;/button&gt;
 &lt;/form&gt;
@@ -120,7 +120,8 @@
     }
 
     function getCapSnippet() {
-      return '  <script src="https://cdn.jsdelivr.net/npm/cap-widget"><\/script>\n  <cap-widget required\n    data-cap-api-endpoint="https://your-cap.railway.app/YOUR_SITE_KEY/">\n  <\/cap-widget>';
+      var endpoint = "{{ settings.cap_endpoint or 'https://your-cap.railway.app/YOUR_SITE_KEY/' }}";
+      return '  <script src="https://cdn.jsdelivr.net/npm/cap-widget"><\/script>\n  <cap-widget required\n    data-cap-api-endpoint="' + endpoint + '">\n  <\/cap-widget>';
     }
 
     function updateSnippet() {

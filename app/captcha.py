@@ -47,7 +47,7 @@ async def verify_cap(token: str) -> bool:
 
 
 def verify_honeypot(data: dict) -> bool:
-    hp = data.get("website", "")
+    hp = data.get("_hp_website", "")
     return hp == ""
 
 

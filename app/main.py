@@ -52,10 +52,15 @@ app.include_router(admin_router, prefix="/admin")
 @app.get("/", response_class=HTMLResponse)
 async def embed_snippet(request: Request):
     pool = request.app.state.pool
+    if pool is None:
+        return await TemplateResponse(
+            "embed_snippet.html",
+            {"request": request, "forms": [], "settings": settings},
+        )
     forms = await get_forms(pool)
     return await TemplateResponse(
         "embed_snippet.html",
-        {"request": request, "forms": forms},
+        {"request": request, "forms": forms, "settings": settings},
     )
 @app.get("/health")
 async def health(request: Request):
@@ -75,6 +80,10 @@ async def health(request: Request):
 @app.get("/form/{slug}", response_class=HTMLResponse)
 async def public_form(request: Request, slug: str):
     pool = request.app.state.pool
+    if pool is None:
+        if _wants_html(request):
+            return HTMLResponse(status_code=503, content='<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Database not available</div>')
+        raise HTTPException(status_code=503, detail="Database not available")
     form_def = await get_form_by_slug(pool, slug)
     if not form_def:
         if _wants_html(request):
@@ -87,6 +96,10 @@ async def public_form(request: Request, slug: str):
 @app.post("/form/{slug}")
 async def submit_form(request: Request, slug: str):
     pool = request.app.state.pool
+    if pool is None:
+        if _wants_html(request):
+            return HTMLResponse(status_code=503, content='<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px">Database not available</div>')
+        raise HTTPException(status_code=503, detail="Database not available")
     form_def = await get_form_by_slug(pool, slug)
     if not form_def:
         if _wants_html(request):
@@ -109,18 +122,6 @@ async def submit_form(request: Request, slug: str):
             data = dict(body)
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid request body")
-    captcha_ok, captcha_err = await verify_captcha(request, data)
-    if not captcha_ok:
-        if _wants_html(request):
-            msg = captcha_err or "CAPTCHA verification failed"
-            html = '<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px;margin-bottom:16px">' + msg + '</div>'
-            return HTMLResponse(status_code=400, content=html)
-        raise HTTPException(status_code=400, detail=captcha_err or "CAPTCHA failed")
-    cap_token = data.pop("cap_token", None)
-    pow_secret = data.pop("pow_secret", None)
-    pow_nonce = data.pop("pow_nonce", None)
-    pow_difficulty = data.pop("pow_difficulty", None)
-    website = data.pop("website", None)
     submission_data = {}
     email_val = ""
     name_val = ""
@@ -145,6 +146,18 @@ async def submit_form(request: Request, slug: str):
             email_val = val
         if fname == "name":
             name_val = val
+    cap_token = data.pop("cap_token", None)
+    pow_secret = data.pop("pow_secret", None)
+    pow_nonce = data.pop("pow_nonce", None)
+    pow_difficulty = data.pop("pow_difficulty", None)
+    _hp_website = data.pop("_hp_website", None)
+    captcha_ok, captcha_err = await verify_captcha(request, data)
+    if not captcha_ok:
+        if _wants_html(request):
+            msg = captcha_err or "CAPTCHA verification failed"
+            html = '<div style="background:#fee2e2;border:1px solid #ef4444;color:#991b1b;padding:12px 16px;border-radius:6px;margin-bottom:16px">' + msg + '</div>'
+            return HTMLResponse(status_code=400, content=html)
+        raise HTTPException(status_code=400, detail=captcha_err or "CAPTCHA failed")
     metadata = {
         "ip": ip,
         "user_agent": request.headers.get("user-agent", ""),
