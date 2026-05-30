@@ -78,7 +78,7 @@ async def verify_captcha(request, data: dict) -> tuple[bool, Optional[str]]:
         return ok, None if ok else "PoW verification failed"
 
     if mode == "auto":
-        cap_token = data.get("cap_token", "")
+        cap_token = data.get("cap-token", data.get("cap_token", ""))
         if cap_token and settings.cap_endpoint and settings.cap_secret_key:
             ok = await verify_cap(cap_token)
             if ok:

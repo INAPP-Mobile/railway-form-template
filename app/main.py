@@ -155,7 +155,7 @@ async def submit_form(request: Request, slug: str):
 
     # Fix 1: Check for unexpected/honeypot fields BEFORE popping system fields
     form_field_names = {f.get("name") for f in form_def["fields"]}
-    system_fields = {"cap_token", "pow_secret", "pow_nonce", "pow_difficulty", "_hp_website"}
+    system_fields = {"cap_token", "cap-token", "pow_secret", "pow_nonce", "pow_difficulty", "_hp_website"}
     allowed_fields = form_field_names | system_fields
     unexpected = [k for k in data if k not in allowed_fields]
     if unexpected:
