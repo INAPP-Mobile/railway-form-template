@@ -103,13 +103,14 @@ test.describe('Form Builder UI', () => {
   });
 
   test('create form with fields and verify success', async ({ page }) => {
+    const slug = 'test-form-' + Date.now();
     await page.goto(`${BASE}/admin/forms/new`);
-    await page.fill('input[name="slug"]', 'test-form-' + Date.now());
+    await page.fill('input[name="slug"]', slug);
     await page.fill('input[name="title"]', 'Test Form');
     await page.locator('.add-field-btn').click();
     await page.locator('.field-card input[type="text"]').first().fill('Full Name');
     await page.locator('button[type="submit"]').click();
-    await expect(page.locator('text=Test Form')).toBeVisible();
+    await expect(page.locator(`.form-item:has-text("${slug}") h3`)).toBeVisible();
   });
 
   test('duplicate slug shows error', async ({ page }) => {
@@ -169,8 +170,8 @@ test.describe('Form Deletion', () => {
     await page.locator('.field-card input[type="text"]').first().fill('Full Name');
     await page.locator('button[type="submit"]').click();
 
-    // Wait for form creation to complete before navigating
-    await expect(page.locator(`text=${title}`)).toBeVisible();
+    // Wait for form creation to complete — match by unique slug
+    await expect(page.locator(`.form-item:has-text("${slug}") h3`)).toBeVisible();
 
     await page.goto(`${BASE}/admin/forms`);
 
