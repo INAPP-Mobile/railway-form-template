@@ -1,22 +1,25 @@
-# E2E Test Report — t_9d8fdd61
+# E2E Test Report — t_9655cc4b (QA re-verify)
 
 **Date:** 2026-05-30
-**Branch:** feature/t_9d8fdd61
+**Branch:** feature/t_9655cc4b
 **Test Target:** https://form-api-staging.up.railway.app
 **Suite:** 70 tests across 6 spec files
+**Previous run:** t_9d8fdd61 — 66 pass / 4 fail
+**This run:** 67 pass / 3 fail
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
 | Total tests | 70 |
-| Passed | 66 |
-| Failed | 4 |
+| Passed | 67 |
+| Failed | 3 |
 | Flaky | 0 |
 | Skipped | 0 |
-| Duration | 81.2s |
 
-**All 4 failures are in form-page.spec.ts, all caused by browser-side form validation or client-side cap-widget behavior — NOT backend code bugs.**
+**Improvement:** "email field validation" test now passes (1 of 4 fixed by `noValidate` disable in browser).
+
+**All 3 remaining failures share the same root cause: HTMX 2.0.4 does not swap 4xx responses into the DOM (see QA_REPORT_t_9655cc4b.md for details). This is a backend code bug, not a test design issue.**
 
 ---
 
@@ -25,68 +28,70 @@
 **File:** `e2e/form-page.spec.ts`, lines 66-73
 **Expected:** `#form-response` contains "required"
 **Actual:** `#form-response` is empty (`""`)
-**Status:** Test design issue — NOT a backend bug
+**Status:** **Backend code bug** — HTMX 2.0.4 blocks 4xx response swaps
 
 ### Root Cause
 
-The form template (`app/templates/public_form.html` line 155/173) adds the HTML5 `required` attribute to inputs when the field definition in the database has `required: true`. In the Playwright test, `page.fill('input[name="name"]', '')` clears the field, then `page.click('button[type="submit"]')` triggers browser-native form validation. The browser shows a "Please fill out this field" popup and **prevents the submit event from firing**. HTMX never intercepts the submission, so no request reaches the backend, and `#form-response` remains in its initial empty state.
+The backend (`app/main.py`, lines 136-151) returns validation errors as:
+```python
+return HTMLResponse(status_code=400, content=f'<div...>Field ... is required</div>')
+```
 
-The backend DOES handle this correctly — confirmed by api.spec.js test "POST /form/{slug} with missing required field returns 400" (line 48-54) which sends `name: ''` via direct API call and gets status 400 as expected.
+HTMX 2.0.4 sets `shouldSwap = false` for 4xx responses in the `htmx:beforeSwap` event, preventing the error HTML from rendering in `#form-response`. Debug evidence:
+```
+htmx:beforeSwap { detail: { xhr: {status: 400}, shouldSwap: false, isError: true, ... } }
+```
+
+**The form does submit to the backend** (HTMX fires, network POST returns 400). The response contains the correct error HTML. But HTMX refuses to swap 4xx content into the DOM.
 
 ### Resolution
 
-Two options:
-- Add `novalidate` attribute to the `<form>` element to disable browser validation and let the backend handle field validation
-- Or use `page.evaluate(() => { form.noValidate = true; })` before clicking submit to disable browser validation in the test
+Change `status_code=400` to `status_code=200` in all `HTMLResponse(...)` calls inside `if _wants_html(request):` blocks in `app/main.py` at lines 130, 142, 150, 165, and 174. This is the standard HTMX pattern — response content matters for display, not the status code.
+
+### Test Framework Fix Already Applied
+
+The test already uses `page.evaluate(() => { form.noValidate = true; })` to bypass HTML5 validation. This correctly allows the form to submit via HTMX. The remaining blocker is the backend's improper use of 4xx status codes for HTMX responses.
 
 ---
 
 ## Failure 2: "honeypot filled triggers CAPTCHA error"
 
-**File:** `e2e/form-page.spec.ts`, lines 75-87
+**File:** `e2e/form-page.spec.ts`, lines 77-94
 **Expected:** `#form-response` contains "CAPTCHA"
 **Actual:** `#form-response` is empty (`""`)
-**Status:** Environment/infrastructure issue — cap-widget CORS failure on staging
+**Status:** **Backend code bug** — same HTMX 4xx swap issue as Failure 1
 
 ### Root Cause
 
-The cap-widget (loaded from CDN in the form template when `settings.cap_endpoint` is configured) encounters a **CORS error**:
-```
-Access to fetch at 'https://cap-staging.up.railway.app/challenge'
-from origin 'https://form-api-staging.up.railway.app' has been blocked by CORS policy:
-No 'Access-Control-Allow-Origin' header is present on the requested resource.
+Same as Failure 1. The backend (`app/main.py`, line 172-174) returns CAPTCHA errors as:
+```python
+return HTMLResponse(status_code=400, content=html)
 ```
 
-The cap-widget's CDN script inserts a hidden `<input name="cap-token" value="">` into the form, but cannot obtain a valid CAPTCHA token because the challenge fetch fails. The cap-widget, in its error state, **intercepts and blocks the form submit event** regardless of the honeypot field state. Debug-cap test confirms `submitEventFired: false` when clicking the submit button.
+Additionally, the cap-widget CDN script (loaded in `public_form.html` line 183) experiences a CORS error fetching from `cap-staging.up.railway.app` and registers event listeners on the form that block submission. Removing the `<cap-widget>` element via `document.querySelector('cap-widget')?.remove()` does NOT remove the previously-registered event listeners.
 
-Even though all visible fields have valid data, the form never reaches the backend. The backend correctly handles honeypot-filled submissions (confirmed by api.spec.js test "POST /form/{slug} with honeypot returns 400 JSON" at line 40-46 which passes).
+However, the primary blocker for this test is the same HTMX 4xx swap issue.
 
 ### Resolution
 
-- **Deploy a CORS configuration** on `cap-staging.up.railway.app` that allows requests from `form-api-staging.up.railway.app`
-- OR configure the app to not use the cap endpoint (remove `CAP_ENDPOINT` env variable) if the CAP service isn't fully deployed yet
-- OR switch CAPTCHA mode to `honeypot` on staging to bypass the cap-widget entirely
+Same as Failure 1 — change `status_code=400` to `status_code=200` for HTMX HTML responses.
 
 ---
 
 ## Failure 3: "all fields empty shows first required error"
 
-**File:** `e2e/form-page.spec.ts`, lines 89-93
+**File:** `e2e/form-page.spec.ts`, lines 97-103
 **Expected:** `#form-response` contains "Your Name"
 **Actual:** `#form-response` is empty (`""`)
-**Status:** Test design issue — NOT a backend bug
+**Status:** **Backend code bug** — same HTMX 4xx swap issue as Failure 1
 
 ### Root Cause
 
-Same as Failure 1. When the form has `required` attributes on fields and all fields are empty, browser-native HTML5 validation blocks form submission before the submit event fires. HTMX never intercepts, `#form-response` stays empty.
-
-The backend correctly handles this (confirmed by api.spec.js test and `app/main.py` lines 136-140).
+Identical to Failure 1. Backend returns `HTMLResponse(status_code=400, ...)` for empty required fields. HTMX drops the 4xx response. The test correctly disables HTML5 validation with `noValidate`, but the backend's status code prevents HTMX from rendering the error.
 
 ### Resolution
 
-Same as Failure 1:
-- Add `novalidate` to the form
-- Or disable browser validation in test with `page.evaluate`
+Same as Failure 1 — change `status_code=400` to `status_code=200` for HTMX HTML responses.
 
 ---
 
@@ -117,23 +122,36 @@ Use a valid but undesirable email format, or disable browser validation:
 | Spec File | Tests | Pass | Fail | Notes |
 |-----------|-------|------|------|-------|
 | admin.spec.ts | 32 | 32 | 0 | All clean |
-| api.spec.js | 10 | 10 | 0 | Direct API calls bypass browser validation |
+| api.spec.js | 10 | 10 | 0 | All clean — uses Accept:application/json, bypasses HTMX |
 | debug-400.spec.ts | 1 | 1 | 0 | Debug test only |
 | debug-cap.spec.ts | 1 | 1 | 0 | Debug test only |
-| form-page.spec.ts | 18 | 14 | 4 | **All failures here** |
+| form-page.spec.ts | 18 | 15 | 3 | **All 3 failures = same HTMX 4xx swap bug** |
 | submissions-filter.spec.ts | 8 | 8 | 0 | All clean |
 
-## Environment Issues Found
+| Metric | Value |
+|--------|-------|
+| Total tests | 70 |
+| Passed | 67 |
+| Failed | 3 |
 
-1. **CORS on cap-staging.up.railway.app** — The CAP challenge endpoint lacks CORS headers for the form-api-staging origin, causing the cap-widget to fail and block form submissions
-2. **Form uses HTML5 `required` and `type="email"` attributes** — These prevent the E2E tests from reaching the backend for validation error scenarios; tests designed for server-side validation errors can't exercise those paths through the browser
-
-## Prior Session Comparison
-
-- **Previous run (referenced in parent task):** 54 pass / 14 fail (test pollution issues)
-- **Current run:** 66 pass / 4 fail (test pollution fixed; 4 browser-validation failures remain)
-- **Improvement:** 12 additional tests passing — the cap-token fix, strict mode violations, and other bugs from previous iterations have been resolved
+- **Previous run (t_9d8fdd61):** 66 pass / 4 fail — 4 browser-validation failures
+- **This run (t_9655cc4b):** 67 pass / 3 fail — 1 fixed (email validation via noValidate), 3 still fail with a new root cause finding
 
 ## Conclusion
 
-**The cap-widget fix (t_55fddd8b) is successfully merged and deployed.** No backend regressions were introduced. The 4 remaining failures are all frontend/browser-facing test design issues where HTML5 form validation or the cap-widget's CORS-related failure prevents the form submission from reaching the backend. The backend logic for validation and CAPTCHA is confirmed working via direct API tests.
+**The original assumption was wrong.** The 3 remaining failures are NOT test design issues. They are a **backend code bug**: all 5 `HTMLResponse(status_code=400, ...)` calls inside `if _wants_html(request):` blocks in `app/main.py` prevent HTMX 2.0.4 from swapping error responses into the DOM. The test code correctly disables HTML5 validation with `noValidate = true`. The backend returns the correct error HTML content. The network request fires and returns 400. But HTMX refuses to render 4xx responses by default.
+
+**Fix required in `app/main.py`:** Change `status_code=400` to `status_code=200` in 5 locations (lines 130, 142, 150, 165, 174). This is the standard HTMX pattern.
+
+## What Changed from Previous Assessment
+
+| Metric | t_9d8fdd61 (previous) | t_9655cc4b (this) |
+|--------|----------------------|-------------------|
+| Total pass | 66 | 67 |
+| Total fail | 4 | 3 |
+| Email validation | ❌ Fail | ✅ Pass (noValidate fix) |
+| Empty required | ❌ Fail (test design) | ❌ Fail (backend 4xx bug) |
+| Honeypot + CAPTCHA | ❌ Fail (CORS issue) | ❌ Fail (backend 4xx bug) |
+| All fields empty | ❌ Fail (test design) | ❌ Fail (backend 4xx bug) |
+
+**The email validation test was fixed.** The 3 remaining failures are now properly identified as backend code bugs requiring status code changes in `app/main.py`.
