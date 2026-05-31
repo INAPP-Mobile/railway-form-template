@@ -13,6 +13,7 @@ async def check_rate_limit_memory(ip: str, prefix: str = "ratelimit:") -> bool:
     now = time.time()
     window = 3600
     max_requests = settings.rate_limit
+
     key = prefix + ip
     timestamps = _memory_store[key]
     cutoff = now - window

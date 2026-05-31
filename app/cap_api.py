@@ -5,20 +5,16 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
-async def create_cap_site_key(name: str, endpoint: str, secret_key: str) -> Optional[dict]:
-    url = endpoint.rstrip("/") + "/sitekey"
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                url,
-                json={"name": name, "allowed_domains": ["*"]},
-                headers={"Authorization": f"Bearer {secret_key}"},
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                return {"site_key": data.get("site_key"), "secret_key": data.get("secret_key")}
-            else:
-                logger.warning(f"Cap API returned status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        logger.warning(f"Cap API request failed: {e}")
+async def create_cap_site_key(slug: str, endpoint: str, admin_key: str) -> Optional[dict]:
+    """
+    Attempt to create a Cap site key for a form via the admin API.
+    
+    Requires a pre-existing API key with Bot auth privileges.
+    Falls back gracefully — returns None if not possible.
+    """
+    # Cap server does not expose a public endpoint for programmatic 
+    # site key creation through API keys. Keys must be created via the 
+    # Cap web UI admin panel. This function is a no-op that returns None,
+    # causing the caller to fall back to the global CAP_SITE_KEY env var.
+    logger.info(f"Cap auto-provisioning not supported for slug '{slug}' — use global CAP_SITE_KEY instead")
     return None
