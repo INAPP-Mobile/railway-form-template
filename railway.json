@@ -22,7 +22,7 @@
       "name": "cap",
       "source": {
         "type": "image",
-        "image": "tiago2/cap:latest"
+        "image": "tiago2/cap:4.0.15"
       },
       "deploy": {
         "healthcheckPath": "/",
